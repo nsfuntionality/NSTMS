@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupUpload();
     setupExport();
     setupActions();
+    setupModal();
     renderAll();
 });
 
@@ -110,7 +111,6 @@ function populateFilterDropdowns() {
     });
     loadsData.forEach(function(r) {
         if (r.driver) {
-            // Some drivers have "Driver1 / Driver2" format
             r.driver.split('/').forEach(function(d) { driverSet.add(d.trim()); });
         }
         if (r.truck) truckSet.add(r.truck);
@@ -199,9 +199,11 @@ function renderFuelTable() {
     var totalAmt = 0;
 
     if (filteredFuel.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="13" class="empty-state">No fuel records found. Upload a fuel file to get started.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="14" class="empty-state">No fuel records found. Upload a fuel file to get started.</td></tr>';
     } else {
-        filteredFuel.forEach(function(r) {
+        filteredFuel.forEach(function(r, idx) {
+            // Find the real index in fuelData
+            var realIdx = fuelData.indexOf(r);
             var tr = document.createElement('tr');
             tr.innerHTML =
                 '<td>' + esc(r.cardNum) + '</td>' +
@@ -216,7 +218,8 @@ function renderFuelTable() {
                 '<td>' + esc(r.item) + '</td>' +
                 '<td class="amount-cell">$' + num(r.unitPrice) + '</td>' +
                 '<td class="amount-cell">' + num(r.qty) + '</td>' +
-                '<td class="amount-cell">$' + num(r.amt) + '</td>';
+                '<td class="amount-cell">$' + num(r.amt) + '</td>' +
+                '<td><button class="btn-delete" data-type="fuel" data-idx="' + realIdx + '">Delete</button></td>';
             tbody.appendChild(tr);
             totalQty += (parseFloat(r.qty) || 0);
             totalAmt += (parseFloat(r.amt) || 0);
@@ -225,6 +228,13 @@ function renderFuelTable() {
 
     document.getElementById('fuelTotalQty').innerHTML = '<strong>' + totalQty.toFixed(2) + '</strong>';
     document.getElementById('fuelTotalAmt').innerHTML = '<strong>$' + totalAmt.toFixed(2) + '</strong>';
+
+    // Attach delete handlers
+    tbody.querySelectorAll('.btn-delete').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            deleteRecord(this.dataset.type, parseInt(this.dataset.idx));
+        });
+    });
 }
 
 function renderLoadsTable() {
@@ -232,9 +242,10 @@ function renderLoadsTable() {
     tbody.innerHTML = '';
 
     if (filteredLoads.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="14" class="empty-state">No load records found. Upload a loads file to get started.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="15" class="empty-state">No load records found. Upload a loads file to get started.</td></tr>';
     } else {
-        filteredLoads.forEach(function(r) {
+        filteredLoads.forEach(function(r, idx) {
+            var realIdx = loadsData.indexOf(r);
             var tr = document.createElement('tr');
             if (r.notes) tr.classList.add('highlight-row');
             tr.innerHTML =
@@ -251,10 +262,18 @@ function renderLoadsTable() {
                 '<td>' + esc(r.shippingId) + '</td>' +
                 '<td>' + esc(r.puDatetime) + '</td>' +
                 '<td>' + esc(r.doDatetime) + '</td>' +
-                '<td>' + esc(r.notes) + '</td>';
+                '<td>' + esc(r.notes) + '</td>' +
+                '<td><button class="btn-delete" data-type="loads" data-idx="' + realIdx + '">Delete</button></td>';
             tbody.appendChild(tr);
         });
     }
+
+    // Attach delete handlers
+    tbody.querySelectorAll('.btn-delete').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            deleteRecord(this.dataset.type, parseInt(this.dataset.idx));
+        });
+    });
 }
 
 function renderReport() {
@@ -274,7 +293,7 @@ function renderReport() {
         driver = Array.from(drivers).join(', ');
         truck = Array.from(trucks).join(', ');
     }
-    if (filteredFuel.length > 0 && !driver || driver === '--') {
+    if (filteredFuel.length > 0 && (!driver || driver === '--')) {
         var driverNames = new Set();
         filteredFuel.forEach(function(r) { if (r.driverName) driverNames.add(r.driverName); });
         if (driverNames.size) driver = Array.from(driverNames).join(', ');
@@ -424,8 +443,186 @@ function updateStats() {
     document.getElementById('statFuelCost').textContent = '$' + totalCost.toFixed(2);
 }
 
+// ===== Delete Record =====
+function deleteRecord(type, idx) {
+    if (!confirm('Are you sure you want to delete this record?')) return;
+
+    if (type === 'fuel') {
+        fuelData.splice(idx, 1);
+        filteredFuel = [...fuelData];
+    } else if (type === 'loads') {
+        loadsData.splice(idx, 1);
+        filteredLoads = [...loadsData];
+    } else if (type === 'report') {
+        reportData.splice(idx, 1);
+        filteredReport = [...reportData];
+    }
+
+    saveData();
+    applyFilters();
+    showToast('Record deleted', 'success');
+}
+
+// ===== Modal (Add Record) =====
+function setupModal() {
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    document.getElementById('modalCancel').addEventListener('click', closeModal);
+    document.getElementById('modalOverlay').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+
+    document.getElementById('addFuelBtn').addEventListener('click', function() {
+        openAddFuelModal();
+    });
+    document.getElementById('addLoadBtn').addEventListener('click', function() {
+        openAddLoadModal();
+    });
+}
+
+function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('active');
+}
+
+function openAddFuelModal() {
+    document.getElementById('modalTitle').textContent = 'Add Fuel Record';
+    document.getElementById('modalBody').innerHTML =
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Card #</label><input type="text" id="mFuelCard"></div>' +
+            '<div class="form-group"><label>Date</label><input type="date" id="mFuelDate"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Time</label><input type="time" id="mFuelTime"></div>' +
+            '<div class="form-group"><label>Invoice</label><input type="text" id="mFuelInvoice"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Unit/Truck</label><input type="text" id="mFuelUnit"></div>' +
+            '<div class="form-group"><label>Driver Name</label><input type="text" id="mFuelDriver"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Location</label><input type="text" id="mFuelLocation"></div>' +
+            '<div class="form-group"><label>City</label><input type="text" id="mFuelCity"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>State</label><input type="text" id="mFuelState"></div>' +
+            '<div class="form-group"><label>Item</label><input type="text" id="mFuelItem" placeholder="ULSD, DEFD, etc."></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Unit Price</label><input type="number" step="0.001" id="mFuelPrice"></div>' +
+            '<div class="form-group"><label>Qty (Gallons)</label><input type="number" step="0.01" id="mFuelQty"></div>' +
+        '</div>' +
+        '<div class="form-group"><label>Amount</label><input type="number" step="0.01" id="mFuelAmt"></div>';
+
+    document.getElementById('modalSave').onclick = function() {
+        var record = {
+            cardNum: document.getElementById('mFuelCard').value,
+            tranDate: document.getElementById('mFuelDate').value,
+            tranTime: document.getElementById('mFuelTime').value,
+            invoice: document.getElementById('mFuelInvoice').value,
+            unit: document.getElementById('mFuelUnit').value,
+            driverName: document.getElementById('mFuelDriver').value,
+            odometer: 0,
+            locationName: document.getElementById('mFuelLocation').value,
+            city: document.getElementById('mFuelCity').value,
+            state: document.getElementById('mFuelState').value,
+            fees: 0,
+            item: document.getElementById('mFuelItem').value,
+            unitPrice: parseFloat(document.getElementById('mFuelPrice').value) || 0,
+            qty: parseFloat(document.getElementById('mFuelQty').value) || 0,
+            amt: parseFloat(document.getElementById('mFuelAmt').value) || 0,
+            db: '',
+            currency: 'USD/Gallons'
+        };
+        if (!record.tranDate) {
+            showToast('Date is required', 'error');
+            return;
+        }
+        fuelData.push(record);
+        filteredFuel = [...fuelData];
+        saveData();
+        renderAll();
+        closeModal();
+        showToast('Fuel record added', 'success');
+    };
+
+    document.getElementById('modalOverlay').classList.add('active');
+}
+
+function openAddLoadModal() {
+    document.getElementById('modalTitle').textContent = 'Add Load Record';
+    document.getElementById('modalBody').innerHTML =
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Invoice ID</label><input type="text" id="mLoadInvoice"></div>' +
+            '<div class="form-group"><label>Load #</label><input type="text" id="mLoadNum"></div>' +
+        '</div>' +
+        '<div class="form-group"><label>Broker</label><input type="text" id="mLoadBroker"></div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Pick Date</label><input type="date" id="mLoadPickDate"></div>' +
+            '<div class="form-group"><label>Pickup Location</label><input type="text" id="mLoadPickup"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Drop Date</label><input type="date" id="mLoadDropDate"></div>' +
+            '<div class="form-group"><label>Dropoff Location</label><input type="text" id="mLoadDropoff"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Driver</label><input type="text" id="mLoadDriver"></div>' +
+            '<div class="form-group"><label>Truck</label><input type="text" id="mLoadTruck"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Trailer</label><input type="text" id="mLoadTrailer"></div>' +
+            '<div class="form-group"><label>Shipping ID</label><input type="text" id="mLoadShipping"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>PU Datetime</label><input type="text" id="mLoadPU" placeholder="PU 11/03 | Time 02PM"></div>' +
+            '<div class="form-group"><label>DO Datetime</label><input type="text" id="mLoadDO" placeholder="DO 11/04 | Local Miles"></div>' +
+        '</div>' +
+        '<div class="form-group"><label>Notes</label><input type="text" id="mLoadNotes"></div>';
+
+    document.getElementById('modalSave').onclick = function() {
+        var record = {
+            invoiceId: document.getElementById('mLoadInvoice').value,
+            loadNum: document.getElementById('mLoadNum').value,
+            broker: document.getElementById('mLoadBroker').value,
+            pickDate: document.getElementById('mLoadPickDate').value,
+            pickup: document.getElementById('mLoadPickup').value,
+            dropDate: document.getElementById('mLoadDropDate').value,
+            dropoff: document.getElementById('mLoadDropoff').value,
+            driver: document.getElementById('mLoadDriver').value,
+            truck: document.getElementById('mLoadTruck').value,
+            trailer: document.getElementById('mLoadTrailer').value,
+            shippingId: document.getElementById('mLoadShipping').value,
+            puDatetime: document.getElementById('mLoadPU').value,
+            doDatetime: document.getElementById('mLoadDO').value,
+            notes: document.getElementById('mLoadNotes').value
+        };
+        if (!record.pickDate) {
+            showToast('Pick Date is required', 'error');
+            return;
+        }
+        loadsData.push(record);
+        filteredLoads = [...loadsData];
+        saveData();
+        renderAll();
+        closeModal();
+        showToast('Load record added', 'success');
+    };
+
+    document.getElementById('modalOverlay').classList.add('active');
+}
+
 // ===== Upload Handlers =====
 function setupUpload() {
+    // Combined file upload
+    var combinedInput = document.getElementById('combinedFileInput');
+    combinedInput.addEventListener('change', function() {
+        document.getElementById('combinedFileName').textContent = this.files[0] ? this.files[0].name : 'No file chosen';
+        document.getElementById('uploadCombinedBtn').disabled = !this.files[0];
+    });
+    document.getElementById('uploadCombinedBtn').addEventListener('click', function() {
+        var file = combinedInput.files[0];
+        if (!file) return;
+        parseCombinedFile(file);
+    });
+
     // Fuel file
     var fuelInput = document.getElementById('fuelFileInput');
     fuelInput.addEventListener('change', function() {
@@ -463,6 +660,60 @@ function setupUpload() {
     });
 }
 
+// ===== Combined File Parser =====
+function parseCombinedFile(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            var data = new Uint8Array(e.target.result);
+            var workbook = XLSX.read(data, { type: 'array', cellDates: true });
+            var totalRecords = { fuel: 0, loads: 0, report: 0 };
+
+            // Find and parse Fuel sheet
+            var fuelSheet = workbook.SheetNames.find(function(n) {
+                return n.toLowerCase().indexOf('fuel') !== -1;
+            });
+            if (fuelSheet) {
+                var count = parseFuelWorkbook(workbook, file.name, fuelSheet);
+                totalRecords.fuel = count || 0;
+            }
+
+            // Find and parse Loads sheet
+            var loadsSheet = workbook.SheetNames.find(function(n) {
+                return n.toLowerCase().indexOf('load') !== -1;
+            });
+            if (loadsSheet) {
+                var count = parseLoadsWorkbook(workbook, file.name, loadsSheet);
+                totalRecords.loads = count || 0;
+            }
+
+            // Find and parse Report sheet
+            var reportSheet = workbook.SheetNames.find(function(n) {
+                return n.toLowerCase().indexOf('report') !== -1;
+            });
+            if (reportSheet) {
+                var count = parseReportWorkbook(workbook, file.name, reportSheet);
+                totalRecords.report = count || 0;
+            }
+
+            var msg = 'Loaded from ' + file.name + ': ';
+            var parts = [];
+            if (totalRecords.fuel > 0) parts.push(totalRecords.fuel + ' fuel');
+            if (totalRecords.loads > 0) parts.push(totalRecords.loads + ' loads');
+            if (totalRecords.report > 0) parts.push(totalRecords.report + ' report');
+            if (parts.length === 0) {
+                showToast('No data sheets found in file. Expected sheets named Fuel, Loads, or Report.', 'error');
+            } else {
+                showToast(msg + parts.join(', ') + ' records', 'success');
+            }
+        } catch (err) {
+            console.error('Parse error:', err);
+            showToast('Error parsing file: ' + err.message, 'error');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
 function parseExcelFile(file, type) {
     var reader = new FileReader();
     reader.onload = function(e) {
@@ -485,15 +736,14 @@ function parseExcelFile(file, type) {
     reader.readAsArrayBuffer(file);
 }
 
-function parseFuelWorkbook(workbook, fileName) {
-    // Try to find Fuel sheet, otherwise use first sheet
-    var sheetName = workbook.SheetNames.find(function(n) {
+function parseFuelWorkbook(workbook, fileName, sheetNameOverride) {
+    var sheetName = sheetNameOverride || workbook.SheetNames.find(function(n) {
         return n.toLowerCase().indexOf('fuel') !== -1;
     }) || workbook.SheetNames[0];
     var sheet = workbook.Sheets[sheetName];
     var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-    // Find header row
+    // Find header row - Fuel data is in A1:Q50
     var headerIdx = -1;
     for (var i = 0; i < Math.min(rows.length, 15); i++) {
         var row = rows[i];
@@ -507,8 +757,8 @@ function parseFuelWorkbook(workbook, fileName) {
     }
 
     if (headerIdx === -1) {
-        showToast('Could not find fuel data headers in file', 'error');
-        return;
+        if (!sheetNameOverride) showToast('Could not find fuel data headers in file', 'error');
+        return 0;
     }
 
     // Map columns
@@ -534,9 +784,17 @@ function parseFuelWorkbook(workbook, fileName) {
     };
 
     var newData = [];
-    for (var r = headerIdx + 1; r < rows.length; r++) {
+    // Parse up to row 50 (A1:Q50 range) but allow more if data exists
+    var maxRow = Math.min(rows.length, 50);
+    for (var r = headerIdx + 1; r < maxRow; r++) {
         var row = rows[r];
-        if (!row || !row[colMap.cardNum] && !row[colMap.tranDate]) continue;
+        if (!row || (!row[colMap.cardNum] && !row[colMap.tranDate])) continue;
+        // Skip if the row looks empty
+        var hasData = false;
+        for (var c = 0; c < Math.min(row.length, 17); c++) {
+            if (row[c] !== '' && row[c] !== null && row[c] !== undefined) { hasData = true; break; }
+        }
+        if (!hasData) continue;
         newData.push({
             cardNum: row[colMap.cardNum] || '',
             tranDate: excelDateToStr(row[colMap.tranDate]),
@@ -563,24 +821,30 @@ function parseFuelWorkbook(workbook, fileName) {
     saveData();
     saveFileRecord(fileName, 'Fuel', newData.length);
     renderAll();
-    showToast('Loaded ' + newData.length + ' fuel records from ' + fileName, 'success');
+    if (!sheetNameOverride) {
+        showToast('Loaded ' + newData.length + ' fuel records from ' + fileName, 'success');
+    }
+    return newData.length;
 }
 
-function parseLoadsWorkbook(workbook, fileName) {
-    var sheetName = workbook.SheetNames.find(function(n) {
+function parseLoadsWorkbook(workbook, fileName, sheetNameOverride) {
+    var sheetName = sheetNameOverride || workbook.SheetNames.find(function(n) {
         return n.toLowerCase().indexOf('load') !== -1;
     }) || workbook.SheetNames[0];
     var sheet = workbook.Sheets[sheetName];
     var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-    // Find header row
+    // Find header row - Loads data useful range is D1:J49
     var headerIdx = -1;
     for (var i = 0; i < Math.min(rows.length, 15); i++) {
         var row = rows[i];
         if (row && row.some(function(c) {
-            return String(c).toLowerCase().indexOf('invoiceid') !== -1 ||
-                   String(c).toLowerCase().indexOf('load #') !== -1 ||
-                   String(c).toLowerCase().indexOf('load') !== -1 && String(c).toLowerCase().indexOf('broker') !== -1;
+            var s = String(c).toLowerCase();
+            return s.indexOf('invoiceid') !== -1 ||
+                   s.indexOf('load #') !== -1 ||
+                   s.indexOf('load') !== -1 ||
+                   s.indexOf('pick date') !== -1 ||
+                   s.indexOf('broker') !== -1;
         })) {
             headerIdx = i;
             break;
@@ -588,32 +852,33 @@ function parseLoadsWorkbook(workbook, fileName) {
     }
 
     if (headerIdx === -1) {
-        showToast('Could not find load data headers in file', 'error');
-        return;
+        if (!sheetNameOverride) showToast('Could not find load data headers in file', 'error');
+        return 0;
     }
 
     var headers = rows[headerIdx].map(function(h) { return String(h).toLowerCase().trim(); });
     var colMap = {
-        invoiceId: findCol(headers, ['invoiceid', 'invoice']),
+        invoiceId: findCol(headers, ['invoiceid', 'invoice id', 'invoice']),
         loadNum: findCol(headers, ['load #', 'load']),
         broker: findCol(headers, ['broker']),
         pickDate: findCol(headers, ['pick date', 'pickup date']),
         pickup: findCol(headers, ['pickup']),
         dropDate: findCol(headers, ['drop date', 'dropoff date']),
-        dropoff: findCol(headers, ['dropoff']),
+        dropoff: findCol(headers, ['dropoff', 'drop off']),
         driver: findCol(headers, ['driver']),
         truck: findCol(headers, ['truck', 'truckname']),
         trailer: findCol(headers, ['trailer']),
         shippingId: findCol(headers, ['shipping', 'shipping id']),
-        puDatetime: findCol(headers, ['pickup datetime', 'pu datetime']),
-        doDatetime: findCol(headers, ['delivery datetime', 'do datetime']),
+        puDatetime: findCol(headers, ['pickup datetime', 'pu datetime', 'pu date']),
+        doDatetime: findCol(headers, ['delivery datetime', 'do datetime', 'do date']),
         notes: findCol(headers, ['notes', 'note'])
     };
 
     var newData = [];
-    for (var r = headerIdx + 1; r < rows.length; r++) {
+    var maxRow = Math.min(rows.length, 49);
+    for (var r = headerIdx + 1; r < maxRow; r++) {
         var row = rows[r];
-        if (!row || (!row[colMap.invoiceId] && !row[colMap.loadNum])) continue;
+        if (!row || (!row[colMap.invoiceId] && !row[colMap.loadNum] && !row[colMap.pickDate])) continue;
         newData.push({
             invoiceId: row[colMap.invoiceId] || '',
             loadNum: row[colMap.loadNum] || '',
@@ -637,24 +902,20 @@ function parseLoadsWorkbook(workbook, fileName) {
     saveData();
     saveFileRecord(fileName, 'Loads', newData.length);
     renderAll();
-    showToast('Loaded ' + newData.length + ' load records from ' + fileName, 'success');
+    if (!sheetNameOverride) {
+        showToast('Loaded ' + newData.length + ' load records from ' + fileName, 'success');
+    }
+    return newData.length;
 }
 
-function parseReportWorkbook(workbook, fileName) {
-    // Try to find "Report Date - Date" sheet, or sheet with odometer data
-    var sheetName = workbook.SheetNames.find(function(n) {
+function parseReportWorkbook(workbook, fileName, sheetNameOverride) {
+    var sheetName = sheetNameOverride || workbook.SheetNames.find(function(n) {
         return n.toLowerCase().indexOf('report') !== -1;
     }) || workbook.SheetNames[0];
     var sheet = workbook.Sheets[sheetName];
     var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-    // Strategy: Find columns with Date, Start Odo, End Odo, Total Mile, Missing Miles
-    // In the sample file, Miles Per Day data starts around row 9 (column R onwards)
-    // We need to find the date column and odometer columns
-
     var newData = [];
-
-    // First, try to find explicit header row for miles data
     var headerIdx = -1;
     var dateCol = -1;
     var startOdoCol = -1;
@@ -663,42 +924,60 @@ function parseReportWorkbook(workbook, fileName) {
     var missingCol = -1;
     var notesCol = -1;
 
+    // Report miles data is in R9:U50 (column R = index 17, row 9 = index 8)
+    // First try to find headers in column R area (index 17+) around row 8-9
     for (var i = 0; i < Math.min(rows.length, 15); i++) {
         var row = rows[i];
         if (!row) continue;
         for (var j = 0; j < row.length; j++) {
             var cellStr = String(row[j]).toLowerCase().trim();
-            if (cellStr === 'date' && dateCol === -1) { dateCol = j; headerIdx = i; }
-            if (cellStr.indexOf('start odo') !== -1 || cellStr.indexOf('start_odo') !== -1) startOdoCol = j;
-            if (cellStr.indexOf('end odo') !== -1 || cellStr.indexOf('end_odo') !== -1) endOdoCol = j;
+            if (cellStr === 'date' || cellStr === 'dates') {
+                // Prefer date columns in the R+ range (index 17+) for report
+                if (dateCol === -1 || j >= 17) {
+                    dateCol = j;
+                    headerIdx = i;
+                }
+            }
+            if (cellStr.indexOf('start odo') !== -1 || cellStr.indexOf('start_odo') !== -1 || cellStr === 'start odo') startOdoCol = j;
+            if (cellStr.indexOf('end odo') !== -1 || cellStr.indexOf('end_odo') !== -1 || cellStr === 'end odo') endOdoCol = j;
             if (cellStr.indexOf('total mile') !== -1 || cellStr === 'total miles') totalMileCol = j;
             if (cellStr.indexOf('missing') !== -1) missingCol = j;
+            if (cellStr === 'details' || cellStr === 'notes') notesCol = j;
         }
         if (dateCol !== -1 && startOdoCol !== -1) break;
     }
 
-    if (headerIdx === -1 || dateCol === -1) {
-        // Fallback: try to find the Miles Per Day section in the combined report file
-        // The sample file has this data starting at column R (index 17)
-        for (var i = 0; i < Math.min(rows.length, 15); i++) {
+    // If no explicit headers found, try R9:U50 layout (col R=17, starting row 8)
+    if (dateCol === -1) {
+        // Check if column R (index 17) has date-like data starting around row 8
+        for (var i = 7; i < Math.min(rows.length, 12); i++) {
             var row = rows[i];
-            if (!row) continue;
-            for (var j = 0; j < row.length; j++) {
-                var cellStr = String(row[j]).toLowerCase().trim();
-                if (cellStr === 'date') { dateCol = j; headerIdx = i; }
-                if (cellStr === 'start odo') startOdoCol = j;
-                if (cellStr === 'end odo') endOdoCol = j;
-                if (cellStr === 'total mile') totalMileCol = j;
-                if (cellStr === 'missing miles') missingCol = j;
-                if (cellStr === 'details' || cellStr === 'notes') notesCol = j;
+            if (!row || !row[17]) continue;
+            var cellStr = String(row[17]).toLowerCase().trim();
+            if (cellStr === 'date' || cellStr === 'dates') {
+                dateCol = 17;
+                headerIdx = i;
+                startOdoCol = 18; // S
+                endOdoCol = 19;   // T
+                totalMileCol = 20; // U
+                break;
             }
-            if (dateCol !== -1 && startOdoCol !== -1) break;
+            // Check if it's actual date data (no header row)
+            var testDate = excelDateToStr(row[17]);
+            if (testDate && /^\d{4}-\d{2}-\d{2}$/.test(testDate)) {
+                dateCol = 17;
+                headerIdx = i - 1; // data starts here
+                startOdoCol = 18;
+                endOdoCol = 19;
+                totalMileCol = 20;
+                break;
+            }
         }
     }
 
     if (dateCol === -1) {
-        showToast('Could not find date/odometer columns in report file. Looking for: Date, Start Odo, End Odo, Total Mile, Missing Miles', 'error');
-        return;
+        if (!sheetNameOverride) showToast('Could not find date/odometer columns in report file. Looking for: Date, Start Odo, End Odo, Total Miles', 'error');
+        return 0;
     }
 
     // Defaults for columns not found
@@ -707,7 +986,8 @@ function parseReportWorkbook(workbook, fileName) {
     if (totalMileCol === -1) totalMileCol = dateCol + 3;
     if (missingCol === -1) missingCol = dateCol + 4;
 
-    for (var r = headerIdx + 1; r < rows.length; r++) {
+    var maxRow = Math.min(rows.length, 50);
+    for (var r = headerIdx + 1; r < maxRow; r++) {
         var row = rows[r];
         if (!row) continue;
         var dateVal = row[dateCol];
@@ -720,8 +1000,8 @@ function parseReportWorkbook(workbook, fileName) {
             startOdo: row[startOdoCol] || 0,
             endOdo: row[endOdoCol] || 0,
             totalMiles: row[totalMileCol] || 0,
-            missingMiles: row[missingCol] || 0,
-            notes: notesCol !== -1 ? (row[notesCol] || '') : ''
+            missingMiles: missingCol < row.length ? (row[missingCol] || 0) : 0,
+            notes: notesCol !== -1 && notesCol < row.length ? (row[notesCol] || '') : ''
         };
         newData.push(record);
     }
@@ -731,7 +1011,10 @@ function parseReportWorkbook(workbook, fileName) {
     saveData();
     saveFileRecord(fileName, 'Report (Miles/Odo)', newData.length);
     renderAll();
-    showToast('Loaded ' + newData.length + ' daily mile records from ' + fileName, 'success');
+    if (!sheetNameOverride) {
+        showToast('Loaded ' + newData.length + ' daily mile records from ' + fileName, 'success');
+    }
+    return newData.length;
 }
 
 // ===== Export =====
@@ -815,89 +1098,36 @@ function setupActions() {
 }
 
 function loadSampleData() {
-    // Load sample data embedded directly for GitHub Pages (no server needed)
     var sampleFuel = [
-        {cardNum:959,tranDate:"2025-11-03",tranTime:"08:08",invoice:1570,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"TA CHICAGO NORTH",city:"RUSSELL",state:"IL",fees:0,item:"ULSD",unitPrice:3.812,qty:161.23,amt:614.61,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-03",tranTime:"08:08",invoice:1570,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"TA CHICAGO NORTH",city:"RUSSELL",state:"IL",fees:0,item:"DEFD",unitPrice:4.399,qty:15.14,amt:66.61,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-05",tranTime:"07:42",invoice:38944,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO GREENSBURG",city:"GREENSBURG",state:"IN",fees:0,item:"ULSD",unitPrice:3.685,qty:161.65,amt:595.68,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-05",tranTime:"07:42",invoice:38944,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO GREENSBURG",city:"GREENSBURG",state:"IN",fees:0,item:"DEFD",unitPrice:4.399,qty:11.29,amt:49.66,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-07",tranTime:"07:00",invoice:57250,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO RACINE - FUEL 491",city:"STURTEVANT",state:"WI",fees:0,item:"ULSD",unitPrice:3.277,qty:164.76,amt:539.92,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-07",tranTime:"07:00",invoice:57250,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO RACINE - FUEL 491",city:"STURTEVANT",state:"WI",fees:0,item:"DEFD",unitPrice:4.399,qty:10.75,amt:47.30,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-08",tranTime:"19:17",invoice:47082,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO REMINGTON",city:"REMINGTON",state:"IN",fees:0,item:"ULSD",unitPrice:3.576,qty:174.86,amt:625.30,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-08",tranTime:"19:17",invoice:47082,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO REMINGTON",city:"REMINGTON",state:"IN",fees:0,item:"DEFD",unitPrice:4.399,qty:9.94,amt:43.73,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-12",tranTime:"05:02",invoice:6237,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"TA CHICAGO NORTH",city:"RUSSELL",state:"IL",fees:0,item:"ULSD",unitPrice:3.925,qty:170.72,amt:670.07,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-12",tranTime:"05:02",invoice:6237,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"TA CHICAGO NORTH",city:"RUSSELL",state:"IL",fees:0,item:"DEFD",unitPrice:4.399,qty:11.61,amt:51.05,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-13",tranTime:"02:22",invoice:52717,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO REMINGTON",city:"REMINGTON",state:"IN",fees:0,item:"ULSD",unitPrice:3.573,qty:167.15,amt:597.22,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-14",tranTime:"09:01",invoice:66434,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO RACINE - FUEL 491",city:"STURTEVANT",state:"WI",fees:0,item:"ULSD",unitPrice:3.427,qty:83.04,amt:284.58,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-16",tranTime:"12:14",invoice:66469,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO RACINE - FUEL 491",city:"STURTEVANT",state:"WI",fees:0,item:"ULSD",unitPrice:3.427,qty:137.63,amt:471.66,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-16",tranTime:"12:14",invoice:66469,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO RACINE - FUEL 491",city:"STURTEVANT",state:"WI",fees:0,item:"DEFD",unitPrice:4.399,qty:18.42,amt:81.01,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-17",tranTime:"19:32",invoice:44196,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO GREENSBURG",city:"GREENSBURG",state:"IN",fees:0,item:"ULSD",unitPrice:3.923,qty:162.37,amt:636.98,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-17",tranTime:"19:32",invoice:44196,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO GREENSBURG",city:"GREENSBURG",state:"IN",fees:0,item:"DEFD",unitPrice:4.399,qty:8.75,amt:38.50,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-19",tranTime:"18:11",invoice:10597,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"TA CHICAGO NORTH",city:"RUSSELL",state:"IL",fees:0,item:"ULSD",unitPrice:4.026,qty:175.38,amt:706.08,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-21",tranTime:"10:26",invoice:60652,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO REMINGTON",city:"REMINGTON",state:"IN",fees:0,item:"ULSD",unitPrice:3.567,qty:132.79,amt:473.67,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-21",tranTime:"10:26",invoice:60652,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO REMINGTON",city:"REMINGTON",state:"IN",fees:0,item:"DEFD",unitPrice:4.399,qty:19.59,amt:86.19,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-24",tranTime:"02:27",invoice:47331,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO GREENSBURG",city:"GREENSBURG",state:"IN",fees:0,item:"ULSD",unitPrice:3.491,qty:167.77,amt:585.69,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-24",tranTime:"02:27",invoice:47331,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO GREENSBURG",city:"GREENSBURG",state:"IN",fees:0,item:"DEFD",unitPrice:4.399,qty:11.58,amt:50.95,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-27",tranTime:"23:42",invoice:81071,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO RACINE - FUEL 491",city:"STURTEVANT",state:"WI",fees:0,item:"ULSD",unitPrice:2.863,qty:172.43,amt:493.67,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-27",tranTime:"23:42",invoice:81071,unit:"MPL5046",driverName:"Manjinder Bajwa",odometer:0,locationName:"PETRO RACINE - FUEL 491",city:"STURTEVANT",state:"WI",fees:0,item:"DEFD",unitPrice:4.399,qty:9.65,amt:42.47,db:"N",currency:"USD/Gallons"}
+        {cardNum:959,tranDate:"2025-11-03",tranTime:"08:08",invoice:1570,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"TA CHICAGO NORTH",city:"RUSSELL",state:"IL",fees:0,item:"ULSD",unitPrice:3.812,qty:161.23,amt:614.61,db:"N",currency:"USD/Gallons"},
+        {cardNum:959,tranDate:"2025-11-03",tranTime:"08:08",invoice:1570,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"TA CHICAGO NORTH",city:"RUSSELL",state:"IL",fees:0,item:"DEFD",unitPrice:4.399,qty:15.14,amt:66.61,db:"N",currency:"USD/Gallons"},
+        {cardNum:959,tranDate:"2025-11-05",tranTime:"07:42",invoice:38944,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"PETRO GREENSBURG",city:"GREENSBURG",state:"IN",fees:0,item:"ULSD",unitPrice:3.685,qty:161.65,amt:595.68,db:"N",currency:"USD/Gallons"},
+        {cardNum:959,tranDate:"2025-11-05",tranTime:"07:42",invoice:38944,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"PETRO GREENSBURG",city:"GREENSBURG",state:"IN",fees:0,item:"DEFD",unitPrice:4.399,qty:11.29,amt:49.66,db:"N",currency:"USD/Gallons"},
+        {cardNum:959,tranDate:"2025-11-07",tranTime:"07:00",invoice:57250,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"PETRO RACINE",city:"STURTEVANT",state:"WI",fees:0,item:"ULSD",unitPrice:3.277,qty:164.76,amt:539.92,db:"N",currency:"USD/Gallons"},
+        {cardNum:959,tranDate:"2025-11-07",tranTime:"07:00",invoice:57250,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"PETRO RACINE",city:"STURTEVANT",state:"WI",fees:0,item:"DEFD",unitPrice:4.399,qty:10.75,amt:47.30,db:"N",currency:"USD/Gallons"},
+        {cardNum:959,tranDate:"2025-11-08",tranTime:"19:17",invoice:47082,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"PETRO REMINGTON",city:"REMINGTON",state:"IN",fees:0,item:"ULSD",unitPrice:3.576,qty:174.86,amt:625.30,db:"N",currency:"USD/Gallons"},
+        {cardNum:959,tranDate:"2025-11-12",tranTime:"05:02",invoice:6237,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"TA CHICAGO NORTH",city:"RUSSELL",state:"IL",fees:0,item:"ULSD",unitPrice:3.925,qty:170.72,amt:670.07,db:"N",currency:"USD/Gallons"}
     ];
 
     var sampleLoads = [
-        {invoiceId:"KLL56230",loadNum:15368128,broker:"Avenger Logistics Llc",pickDate:"2025-10-31",pickup:"Sharonville, OH 45241",dropDate:"2025-11-03",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1016",shippingId:580988,puDatetime:"PU 10/31 | Time 03PM",doDatetime:"DO 11/03 | Local Miles",notes:""},
-        {invoiceId:"KLL56375",loadNum:15393089,broker:"Avenger Logistics Llc",pickDate:"2025-11-03",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-03",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1016",shippingId:6851123,puDatetime:"PU 11/03 | Local Miles",doDatetime:"DO 11/03 | Time 02PM",notes:""},
-        {invoiceId:"KLL56376",loadNum:15392627,broker:"Avenger Logistics Llc",pickDate:"2025-11-03",pickup:"Sharonville, OH 45241",dropDate:"2025-11-04",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1008",shippingId:581331,puDatetime:"PU 11/03 | Time 02PM",doDatetime:"DO 11/04 | Local Miles",notes:""},
-        {invoiceId:"KLL56397",loadNum:15392834,broker:"Avenger Logistics Llc",pickDate:"2025-11-04",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-04",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1008",shippingId:6851159,puDatetime:"PU 11/04 | Local Miles",doDatetime:"DO 11/04 | Time 07PM",notes:"Wrong Shiping id and trailer no. on Eld"},
-        {invoiceId:"KLL56398",loadNum:15392694,broker:"Avenger Logistics Llc",pickDate:"2025-11-04",pickup:"Sharonville, OH 45241",dropDate:"2025-11-06",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa / Rohit Kumar",truck:"MPL5046",trailer:"MPL1015",shippingId:581572,puDatetime:"PU 11/04 | Time 07PM",doDatetime:"DO 11/06 | Local Driver",notes:""},
-        {invoiceId:"KLL56419",loadNum:15392663,broker:"Avenger Logistics Llc",pickDate:"2025-11-06",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-06",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa / Rohit Kumar",truck:"MPL5046",trailer:"MPL1002",shippingId:6851195,puDatetime:"PU 11/06 | Local Driver",doDatetime:"DO 11/06 | Time 02PM",notes:""},
-        {invoiceId:"KLL56420",loadNum:15393302,broker:"Avenger Logistics Llc",pickDate:"2025-11-06",pickup:"Sharonville, OH 45241",dropDate:"2025-11-07",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1047",shippingId:581776,puDatetime:"PU 11/06 | Time 02PM",doDatetime:"DO 11/07 | Local Miles",notes:"Wrong Shiping id and trailer no. on Eld"},
-        {invoiceId:"KLL56451",loadNum:15392866,broker:"Avenger Logistics Llc",pickDate:"2025-11-08",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-08",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa / Vikas Saini",truck:"MPL5046",trailer:"MPL1018",shippingId:6851242,puDatetime:"PU 11/08 | Local Driver",doDatetime:"DO 11/08 | Time 03PM",notes:""},
-        {invoiceId:"KLL56452",loadNum:15393042,broker:"Avenger Logistics Llc",pickDate:"2025-11-08",pickup:"Sharonville, OH 45241",dropDate:"2025-11-10",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1047",shippingId:582017,puDatetime:"PU 11/08 | Time 03PM",doDatetime:"DO 11/10 | Local Miles",notes:""},
-        {invoiceId:"KLL56568",loadNum:15425555,broker:"Avenger Logistics Llc",pickDate:"2025-11-10",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-11",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1047",shippingId:6851294,puDatetime:"PU 11/10 | Local Miles",doDatetime:"DO 11/11 | Time 03AM",notes:"Wrong Shiping id and trailer no. on Eld"},
-        {invoiceId:"KLL56569",loadNum:15425564,broker:"Avenger Logistics Llc",pickDate:"2025-11-11",pickup:"Sharonville, OH 45241",dropDate:"2025-11-12",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1011",shippingId:582075,puDatetime:"PU 11/11 | Time 03AM",doDatetime:"DO 11/12 | Local Miles",notes:""},
-        {invoiceId:"KLL56588",loadNum:15417727,broker:"Avenger Logistics Llc",pickDate:"2025-11-12",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-12",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1011",shippingId:6851324,puDatetime:"PU 11/12 | Local Miles",doDatetime:"DO 11/12 | Time 11PM",notes:""},
-        {invoiceId:"KLL56589",loadNum:15417160,broker:"Avenger Logistics Llc",pickDate:"2025-11-12",pickup:"Sharonville, OH 45241",dropDate:"2025-11-13",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa / Baljit Singh",truck:"MPL5046",trailer:"MPL1018",shippingId:582576,puDatetime:"PU 11/12 | Time 11PM",doDatetime:"DO 11/13 | Local Driver",notes:"Wrong Shiping id and trailer no. on Eld"},
-        {invoiceId:"KLL56604",loadNum:15417280,broker:"Avenger Logistics Llc",pickDate:"2025-11-13",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-13",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1014",shippingId:6851352,puDatetime:"PU 11/13 | Local Driver",doDatetime:"DO 11/13 | Time 11PM",notes:"Wrong trailer no. on Eld"},
-        {invoiceId:"KLL56605",loadNum:15417700,broker:"Avenger Logistics Llc",pickDate:"2025-11-13",pickup:"Sharonville, OH 45241",dropDate:"2025-11-14",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa / Nikhal Panday",truck:"MPL5046",trailer:"MPL1004",shippingId:582677,puDatetime:"PU 11/13 | Time 11PM",doDatetime:"DO 11/14 | Local Miles",notes:"Wrong Shiping id on Eld"},
-        {invoiceId:"KLL56628",loadNum:15417205,broker:"Avenger Logistics Llc",pickDate:"2025-11-14",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-15",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1016",shippingId:6851389,puDatetime:"PU 11/14 | Local Miles",doDatetime:"DO 11/15 | Time 02AM",notes:""},
-        {invoiceId:"KLL56629",loadNum:15417158,broker:"Avenger Logistics Llc",pickDate:"2025-11-15",pickup:"Sharonville, OH 45241",dropDate:"2025-11-16",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1027",shippingId:582976,puDatetime:"PU 11/15 | Time 02AM",doDatetime:"DO 11/16 | Local Driver",notes:"Need to recheck Local Driver"},
-        {invoiceId:"KLL56756",loadNum:15440628,broker:"Avenger Logistics Llc",pickDate:"2025-11-17",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-17",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1023",shippingId:6851448,puDatetime:"PU 11/17 | Local Miles",doDatetime:"DO 11/17 | Time 06PM",notes:""},
-        {invoiceId:"KLL56757",loadNum:15440770,broker:"Avenger Logistics Llc",pickDate:"2025-11-17",pickup:"Sharonville, OH 45241",dropDate:"2025-11-18",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1027",shippingId:583188,puDatetime:"PU 11/17 | Time 06PM",doDatetime:"DO 11/18 | Local Miles",notes:""},
-        {invoiceId:"KLL56776",loadNum:15441263,broker:"Avenger Logistics Llc",pickDate:"2025-11-18",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-18",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1027",shippingId:6851480,puDatetime:"PU 11/18 | Local Miles",doDatetime:"DO 11/18 | Time 09PM",notes:"Wrong Shiping id and trailer no. on Eld"},
-        {invoiceId:"KLL56777",loadNum:15440413,broker:"Avenger Logistics Llc",pickDate:"2025-11-18",pickup:"Sharonville, OH 45241",dropDate:"2025-11-19",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1014",shippingId:583590,puDatetime:"PU 11/18 | Time 09PM",doDatetime:"DO 11/19 | Local Miles",notes:""},
-        {invoiceId:"KLL56796",loadNum:15440397,broker:"Avenger Logistics Llc",pickDate:"2025-11-19",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-20",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1014",shippingId:6851514,puDatetime:"PU 11/19 | Local Miles",doDatetime:"DO 11/20 | Time 11AM",notes:"Wrong Shiping id and trailer no. on Eld"},
-        {invoiceId:"KLL56797",loadNum:15440941,broker:"Avenger Logistics Llc",pickDate:"2025-11-20",pickup:"Sharonville, OH 45241",dropDate:"2025-11-20",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1011",shippingId:583860,puDatetime:"PU 11/20 | Time 11AM",doDatetime:"DO 11/20 | Local Driver",notes:"Needs to recheck*"},
-        {invoiceId:"KLL56812",loadNum:15440662,broker:"Avenger Logistics Llc",pickDate:"2025-11-20",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-21",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1011",shippingId:6851544,puDatetime:"PU 11/20 | Local Driver",doDatetime:"DO 11/21 | Time 01PM",notes:"Needs to recheck*"},
-        {invoiceId:"KLL56813",loadNum:15440633,broker:"Avenger Logistics Llc",pickDate:"2025-11-21",pickup:"Sharonville, OH 45241",dropDate:"2025-11-23",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1011",shippingId:584083,puDatetime:"PU 11/21 | Time 01PM",doDatetime:"DO 11/23 | Local Miles",notes:"Wrong Shiping id on Eld"},
-        {invoiceId:"KLL56936",loadNum:15464416,broker:"Avenger Logistics Llc",pickDate:"2025-11-23",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-24",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa / Nikhal Panday",truck:"MPL5046",trailer:"MPL1009",shippingId:6851594,puDatetime:"PU 11/23 | Local Driver",doDatetime:"DO 11/24 | Time 01AM",notes:"Wrong Shiping id and trailer no. on Eld"},
-        {invoiceId:"KLL56937",loadNum:15464688,broker:"Avenger Logistics Llc",pickDate:"2025-11-24",pickup:"Sharonville, OH 45241",dropDate:"2025-11-24",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1026",shippingId:584271,puDatetime:"PU 11/24 | Time 01AM",doDatetime:"DO 11/24 | Local Miles",notes:""},
-        {invoiceId:"KLL56956",loadNum:15464436,broker:"Avenger Logistics Llc",pickDate:"2025-11-24",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-25",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1026",shippingId:6851621,puDatetime:"PU 11/24 | Local Miles",doDatetime:"DO 11/25 | Time 04AM",notes:""},
-        {invoiceId:"KLL56957",loadNum:15464538,broker:"Avenger Logistics Llc",pickDate:"2025-11-25",pickup:"Sharonville, OH 45241",dropDate:"2025-11-27",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1018",shippingId:584150,puDatetime:"PU 11/25 | Time 04AM",doDatetime:"DO 11/27 | Local Miles",notes:"Wrong Shiping id and trailer no. on Eld"},
-        {invoiceId:"KLL56978",loadNum:15464705,broker:"Avenger Logistics Llc",pickDate:"2025-11-27",pickup:"Sheboygan, WI 53081",dropDate:"2025-11-28",dropoff:"Sharonville, OH 45241",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1018",shippingId:6851664,puDatetime:"PU 11/27 | Local Miles",doDatetime:"DO 11/28 | Time 10PM",notes:"Wrong Shiping id and trailer no. on Eld"},
-        {invoiceId:"KLL56979",loadNum:15464776,broker:"Avenger Logistics Llc",pickDate:"2025-11-28",pickup:"Sharonville, OH 45241",dropDate:"2025-12-01",dropoff:"Sheboygan, WI 53081",driver:"Manjinder Bajwa",truck:"MPL5046",trailer:"MPL1023",shippingId:584829,puDatetime:"PU 11/28 | Time 10PM",doDatetime:"DO 12/01 | Local Miles",notes:""}
+        {invoiceId:"INV001",loadNum:15368128,broker:"Sample Logistics LLC",pickDate:"2025-11-03",pickup:"City A, OH 45241",dropDate:"2025-11-03",dropoff:"City B, WI 53081",driver:"Driver A",truck:"MPL5046",trailer:"MPL1016",shippingId:580988,puDatetime:"PU 11/03 | Time 03PM",doDatetime:"DO 11/03 | Local Miles",notes:""},
+        {invoiceId:"INV002",loadNum:15393089,broker:"Sample Logistics LLC",pickDate:"2025-11-03",pickup:"City B, WI 53081",dropDate:"2025-11-03",dropoff:"City A, OH 45241",driver:"Driver A",truck:"MPL5046",trailer:"MPL1016",shippingId:6851123,puDatetime:"PU 11/03 | Local Miles",doDatetime:"DO 11/03 | Time 02PM",notes:""},
+        {invoiceId:"INV003",loadNum:15392627,broker:"Sample Logistics LLC",pickDate:"2025-11-03",pickup:"City A, OH 45241",dropDate:"2025-11-04",dropoff:"City B, WI 53081",driver:"Driver A",truck:"MPL5046",trailer:"MPL1008",shippingId:581331,puDatetime:"PU 11/03 | Time 02PM",doDatetime:"DO 11/04 | Local Miles",notes:""},
+        {invoiceId:"INV004",loadNum:15392834,broker:"Sample Logistics LLC",pickDate:"2025-11-04",pickup:"City B, WI 53081",dropDate:"2025-11-04",dropoff:"City A, OH 45241",driver:"Driver A",truck:"MPL5046",trailer:"MPL1008",shippingId:6851159,puDatetime:"PU 11/04 | Local Miles",doDatetime:"DO 11/04 | Time 07PM",notes:"Sample note"},
+        {invoiceId:"INV005",loadNum:15392694,broker:"Sample Logistics LLC",pickDate:"2025-11-04",pickup:"City A, OH 45241",dropDate:"2025-11-06",dropoff:"City B, WI 53081",driver:"Driver A / Driver B",truck:"MPL5046",trailer:"MPL1015",shippingId:581572,puDatetime:"PU 11/04 | Time 07PM",doDatetime:"DO 11/06 | Local Driver",notes:""}
     ];
 
     var sampleReport = [
         {date:"2025-11-01",startOdo:57685,endOdo:57858,totalMiles:173,missingMiles:0,notes:""},
         {date:"2025-11-02",startOdo:57858,endOdo:57858,totalMiles:0,missingMiles:0,notes:""},
-        {date:"2025-11-03",startOdo:57858,endOdo:57858,totalMiles:0,missingMiles:428,notes:"Maybe book transfer to someone"},
+        {date:"2025-11-03",startOdo:57858,endOdo:57858,totalMiles:0,missingMiles:428,notes:""},
         {date:"2025-11-03",startOdo:58286,endOdo:58924,totalMiles:638,missingMiles:0,notes:""},
         {date:"2025-11-04",startOdo:58924,endOdo:59067,totalMiles:143,missingMiles:136,notes:""},
         {date:"2025-11-04",startOdo:59203,endOdo:59587,totalMiles:384,missingMiles:0,notes:""},
         {date:"2025-11-05",startOdo:59587,endOdo:60274,totalMiles:687,missingMiles:0,notes:""},
         {date:"2025-11-06",startOdo:60274,endOdo:60274,totalMiles:0,missingMiles:15,notes:""},
         {date:"2025-11-06",startOdo:60289,endOdo:60981,totalMiles:692,missingMiles:0,notes:""},
-        {date:"2025-11-07",startOdo:60981,endOdo:61048,totalMiles:67,missingMiles:134,notes:""},
-        {date:"2025-11-07",startOdo:61182,endOdo:61939,totalMiles:757,missingMiles:0,notes:"Book transfer to SodhiTanvir Singh"},
-        {date:"2025-11-08",startOdo:61939,endOdo:61939,totalMiles:0,missingMiles:0,notes:""},
-        {date:"2025-11-08",startOdo:61939,endOdo:62632,totalMiles:693,missingMiles:0,notes:""},
-        {date:"2025-11-09",startOdo:62632,endOdo:62696,totalMiles:64,missingMiles:0,notes:""},
-        {date:"2025-11-10",startOdo:62696,endOdo:62696,totalMiles:0,missingMiles:134,notes:""},
-        {date:"2025-11-10",startOdo:62830,endOdo:63013,totalMiles:183,missingMiles:0,notes:""},
-        {date:"2025-11-11",startOdo:63013,endOdo:63534,totalMiles:521,missingMiles:0,notes:""},
-        {date:"2025-11-12",startOdo:63534,endOdo:63597,totalMiles:63,missingMiles:135,notes:""},
-        {date:"2025-11-12",startOdo:63732,endOdo:64176,totalMiles:444,missingMiles:0,notes:""},
-        {date:"2025-11-13",startOdo:64176,endOdo:64945,totalMiles:769,missingMiles:0,notes:""},
-        {date:"2025-11-14",startOdo:64945,endOdo:65324,totalMiles:379,missingMiles:138,notes:""}
+        {date:"2025-11-07",startOdo:60981,endOdo:61048,totalMiles:67,missingMiles:134,notes:""}
     ];
 
     fuelData = sampleFuel;
@@ -907,9 +1137,9 @@ function loadSampleData() {
     filteredLoads = [...loadsData];
     filteredReport = [...reportData];
     saveData();
-    saveFileRecord('Sample - Fuel Nov 2025', 'Fuel', sampleFuel.length);
-    saveFileRecord('Sample - Loads Nov 2025', 'Loads', sampleLoads.length);
-    saveFileRecord('Sample - Report Nov 2025', 'Report (Miles/Odo)', sampleReport.length);
+    saveFileRecord('Sample - Fuel', 'Fuel', sampleFuel.length);
+    saveFileRecord('Sample - Loads', 'Loads', sampleLoads.length);
+    saveFileRecord('Sample - Report', 'Report (Miles/Odo)', sampleReport.length);
     renderAll();
     showToast('Sample data loaded successfully!', 'success');
 }
@@ -933,7 +1163,6 @@ function excelDateToStr(val) {
         return y + '-' + m + '-' + d;
     }
     if (typeof val === 'string') {
-        // Try to parse common date formats
         if (/^\d{4}-\d{2}-\d{2}/.test(val)) return val.substring(0, 10);
         var parsed = new Date(val);
         if (!isNaN(parsed.getTime())) {
@@ -941,7 +1170,6 @@ function excelDateToStr(val) {
         }
     }
     if (typeof val === 'number') {
-        // Excel serial date
         var date = new Date((val - 25569) * 86400000);
         return date.getFullYear() + '-' + String(date.getMonth()+1).padStart(2,'0') + '-' + String(date.getDate()).padStart(2,'0');
     }
@@ -964,7 +1192,6 @@ function formatExcelTime(val) {
 
 function formatDate(dateStr) {
     if (!dateStr) return '';
-    // dateStr is expected as YYYY-MM-DD
     var parts = String(dateStr).split('-');
     if (parts.length === 3) {
         return parts[1] + '/' + parts[2] + '/' + parts[0];
