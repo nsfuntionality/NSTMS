@@ -273,7 +273,7 @@ function renderFuelTable() {
                 '<td class="amount-cell">$' + num(r.amt) + '</td>' +
                 '<td>' + esc(r.db) + '</td>' +
                 '<td>' + esc(r.currency) + '</td>' +
-                '<td><button class="btn-delete" data-type="fuel" data-idx="' + realIdx + '">Delete</button></td>';
+                '<td class="actions-cell"><button class="btn-edit" data-type="fuel" data-idx="' + realIdx + '">Edit</button><button class="btn-delete" data-type="fuel" data-idx="' + realIdx + '">Delete</button></td>';
             tbody.appendChild(tr);
             totalQty += (parseFloat(r.qty) || 0);
             totalAmt += (parseFloat(r.amt) || 0);
@@ -286,6 +286,11 @@ function renderFuelTable() {
     tbody.querySelectorAll('.btn-delete').forEach(function(btn) {
         btn.addEventListener('click', function() {
             deleteRecord(this.dataset.type, parseInt(this.dataset.idx));
+        });
+    });
+    tbody.querySelectorAll('.btn-edit').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            editRecord(this.dataset.type, parseInt(this.dataset.idx));
         });
     });
 }
@@ -316,7 +321,7 @@ function renderLoadsTable() {
                 '<td>' + esc(r.puDatetime) + '</td>' +
                 '<td>' + esc(r.doDatetime) + '</td>' +
                 '<td>' + esc(r.notes) + '</td>' +
-                '<td><button class="btn-delete" data-type="loads" data-idx="' + realIdx + '">Delete</button></td>';
+                '<td class="actions-cell"><button class="btn-edit" data-type="loads" data-idx="' + realIdx + '">Edit</button><button class="btn-delete" data-type="loads" data-idx="' + realIdx + '">Delete</button></td>';
             tbody.appendChild(tr);
         });
     }
@@ -324,6 +329,11 @@ function renderLoadsTable() {
     tbody.querySelectorAll('.btn-delete').forEach(function(btn) {
         btn.addEventListener('click', function() {
             deleteRecord(this.dataset.type, parseInt(this.dataset.idx));
+        });
+    });
+    tbody.querySelectorAll('.btn-edit').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            editRecord(this.dataset.type, parseInt(this.dataset.idx));
         });
     });
 }
@@ -516,7 +526,201 @@ function deleteRecord(type, idx) {
 
     saveData();
     applyFilters();
-    showToast('Record deleted', 'success');
+    showToast('Record deleted. Click "Save to Excel" to update the Excel file.', 'success');
+}
+
+// ===== Edit Record =====
+function editRecord(type, idx) {
+    if (type === 'fuel') {
+        openEditFuelModal(idx);
+    } else if (type === 'loads') {
+        openEditLoadModal(idx);
+    }
+}
+
+function openEditFuelModal(idx) {
+    var r = fuelData[idx];
+    if (!r) return;
+    document.getElementById('modalTitle').textContent = 'Edit Fuel Record';
+    document.getElementById('modalBody').innerHTML =
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Card #</label><input type="text" id="mFuelCard" value="' + escAttr(r.cardNum) + '"></div>' +
+            '<div class="form-group"><label>Date</label><input type="date" id="mFuelDate" value="' + escAttr(r.tranDate) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Time</label><input type="time" id="mFuelTime" value="' + escAttr(r.tranTime) + '"></div>' +
+            '<div class="form-group"><label>Invoice</label><input type="text" id="mFuelInvoice" value="' + escAttr(r.invoice) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Unit/Truck</label><input type="text" id="mFuelUnit" value="' + escAttr(r.unit) + '"></div>' +
+            '<div class="form-group"><label>Driver Name</label><input type="text" id="mFuelDriver" value="' + escAttr(r.driverName) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Odometer</label><input type="number" id="mFuelOdometer" value="' + escAttr(r.odometer) + '"></div>' +
+            '<div class="form-group"><label>Location</label><input type="text" id="mFuelLocation" value="' + escAttr(r.locationName) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>City</label><input type="text" id="mFuelCity" value="' + escAttr(r.city) + '"></div>' +
+            '<div class="form-group"><label>State</label><input type="text" id="mFuelState" value="' + escAttr(r.state) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Fees</label><input type="number" step="0.01" id="mFuelFees" value="' + escAttr(r.fees) + '"></div>' +
+            '<div class="form-group"><label>Item</label><input type="text" id="mFuelItem" value="' + escAttr(r.item) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Unit Price</label><input type="number" step="0.001" id="mFuelPrice" value="' + escAttr(r.unitPrice) + '"></div>' +
+            '<div class="form-group"><label>Qty (Gallons)</label><input type="number" step="0.01" id="mFuelQty" value="' + escAttr(r.qty) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Amount</label><input type="number" step="0.01" id="mFuelAmt" value="' + escAttr(r.amt) + '"></div>' +
+            '<div class="form-group"><label>Currency</label><input type="text" id="mFuelCurrency" value="' + escAttr(r.currency) + '"></div>' +
+        '</div>';
+
+    document.getElementById('modalSave').onclick = function() {
+        fuelData[idx] = {
+            cardNum: document.getElementById('mFuelCard').value,
+            tranDate: document.getElementById('mFuelDate').value,
+            tranTime: document.getElementById('mFuelTime').value,
+            invoice: document.getElementById('mFuelInvoice').value,
+            unit: document.getElementById('mFuelUnit').value,
+            driverName: document.getElementById('mFuelDriver').value,
+            odometer: parseFloat(document.getElementById('mFuelOdometer').value) || 0,
+            locationName: document.getElementById('mFuelLocation').value,
+            city: document.getElementById('mFuelCity').value,
+            state: document.getElementById('mFuelState').value,
+            fees: parseFloat(document.getElementById('mFuelFees').value) || 0,
+            item: document.getElementById('mFuelItem').value,
+            unitPrice: parseFloat(document.getElementById('mFuelPrice').value) || 0,
+            qty: parseFloat(document.getElementById('mFuelQty').value) || 0,
+            amt: parseFloat(document.getElementById('mFuelAmt').value) || 0,
+            db: r.db || '',
+            currency: document.getElementById('mFuelCurrency').value
+        };
+        filteredFuel = [...fuelData];
+        saveData();
+        renderAll();
+        closeModal();
+        showToast('Fuel record updated. Click "Save to Excel" to update the Excel file.', 'success');
+    };
+
+    document.getElementById('modalOverlay').classList.add('active');
+}
+
+function openEditLoadModal(idx) {
+    var r = loadsData[idx];
+    if (!r) return;
+    document.getElementById('modalTitle').textContent = 'Edit Load Record';
+    document.getElementById('modalBody').innerHTML =
+        '<div class="form-row">' +
+            '<div class="form-group"><label>InvoiceID</label><input type="text" id="mLoadInvoiceId" value="' + escAttr(r.invoiceId) + '"></div>' +
+            '<div class="form-group"><label>Load #</label><input type="text" id="mLoadNum" value="' + escAttr(r.loadNum) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Broker</label><input type="text" id="mLoadBroker" value="' + escAttr(r.broker) + '"></div>' +
+            '<div class="form-group"><label>Shipping ID</label><input type="text" id="mLoadShippingId" value="' + escAttr(r.shippingId) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Pick Date</label><input type="date" id="mLoadPickDate" value="' + escAttr(r.pickDate) + '"></div>' +
+            '<div class="form-group"><label>Pickup Location</label><input type="text" id="mLoadPickup" value="' + escAttr(r.pickup) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Drop Date</label><input type="date" id="mLoadDropDate" value="' + escAttr(r.dropDate) + '"></div>' +
+            '<div class="form-group"><label>Dropoff Location</label><input type="text" id="mLoadDropoff" value="' + escAttr(r.dropoff) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Driver</label><input type="text" id="mLoadDriver" value="' + escAttr(r.driver) + '"></div>' +
+            '<div class="form-group"><label>Truck</label><input type="text" id="mLoadTruck" value="' + escAttr(r.truck) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Trailer</label><input type="text" id="mLoadTrailer" value="' + escAttr(r.trailer) + '"></div>' +
+            '<div class="form-group"><label>Notes</label><input type="text" id="mLoadNotes" value="' + escAttr(r.notes) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Pickup Datetime</label><input type="text" id="mLoadPuDatetime" value="' + escAttr(r.puDatetime) + '"></div>' +
+            '<div class="form-group"><label>Delivery Datetime</label><input type="text" id="mLoadDoDatetime" value="' + escAttr(r.doDatetime) + '"></div>' +
+        '</div>';
+
+    document.getElementById('modalSave').onclick = function() {
+        loadsData[idx] = {
+            invoiceId: document.getElementById('mLoadInvoiceId').value,
+            loadNum: document.getElementById('mLoadNum').value,
+            broker: document.getElementById('mLoadBroker').value,
+            pickDate: document.getElementById('mLoadPickDate').value,
+            pickup: document.getElementById('mLoadPickup').value,
+            dropDate: document.getElementById('mLoadDropDate').value,
+            dropoff: document.getElementById('mLoadDropoff').value,
+            driver: document.getElementById('mLoadDriver').value,
+            truck: document.getElementById('mLoadTruck').value,
+            trailer: document.getElementById('mLoadTrailer').value,
+            shippingId: document.getElementById('mLoadShippingId').value,
+            puDatetime: document.getElementById('mLoadPuDatetime').value,
+            doDatetime: document.getElementById('mLoadDoDatetime').value,
+            notes: document.getElementById('mLoadNotes').value
+        };
+        filteredLoads = [...loadsData];
+        saveData();
+        renderAll();
+        closeModal();
+        showToast('Load record updated. Click "Save to Excel" to update the Excel file.', 'success');
+    };
+
+    document.getElementById('modalOverlay').classList.add('active');
+}
+
+// ===== Save to Excel =====
+function saveToExcel(type) {
+    var ws, wb, filename;
+
+    if (type === 'fuel') {
+        var fuelHeaders = ['Card #', 'Tran Date', 'Trans. Time', 'Invoice', 'Unit', 'Driver Name', 'Odometer', 'Location Name', 'City', 'State/Prov', 'Fees', 'Item', 'Unit Price', 'Qty', 'Amt', 'DB', 'Currency'];
+        var fuelRows = [fuelHeaders];
+        fuelData.forEach(function(r) {
+            fuelRows.push([
+                r.cardNum, r.tranDate, r.tranTime, r.invoice, r.unit, r.driverName,
+                r.odometer, r.locationName, r.city, r.state, r.fees, r.item,
+                r.unitPrice, r.qty, r.amt, r.db, r.currency
+            ]);
+        });
+        ws = XLSX.utils.aoa_to_sheet(fuelRows);
+        ws['!cols'] = fuelHeaders.map(function() { return { wch: 14 }; });
+        wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Fuel');
+        filename = 'Fuel.xlsx';
+    } else if (type === 'loads') {
+        var loadsHeaders = ['InvoiceID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date', 'Dropoff', 'Driver', 'TruckName', 'Trailer', 'Shipping ID', 'Pickup Datetime', 'Delivery Datetime', 'Notes'];
+        var loadsRows = [loadsHeaders];
+        loadsData.forEach(function(r) {
+            loadsRows.push([
+                r.invoiceId, r.loadNum, r.broker, r.pickDate, r.pickup, r.dropDate,
+                r.dropoff, r.driver, r.truck, r.trailer, r.shippingId,
+                r.puDatetime, r.doDatetime, r.notes
+            ]);
+        });
+        ws = XLSX.utils.aoa_to_sheet(loadsRows);
+        ws['!cols'] = loadsHeaders.map(function() { return { wch: 16 }; });
+        wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Loads');
+        filename = 'Loads.xlsx';
+    } else if (type === 'report') {
+        var reportHeaders = ['Driver Name', 'Truck', 'Date', 'Start Odo', 'End Odo', 'Total Miles', 'Missing Miles', 'Notes'];
+        var reportRows = [reportHeaders];
+        reportData.forEach(function(r) {
+            reportRows.push([
+                r.driverName || '', r.truck || '', r.date, r.startOdo, r.endOdo,
+                r.totalMiles, r.missingMiles, r.notes || ''
+            ]);
+        });
+        ws = XLSX.utils.aoa_to_sheet(reportRows);
+        ws['!cols'] = reportHeaders.map(function() { return { wch: 14 }; });
+        wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Report');
+        filename = 'Report.xlsx';
+    }
+
+    if (wb) {
+        XLSX.writeFile(wb, filename);
+        showToast('Saved ' + filename + ' - replace the file in data/ folder and push to update.', 'success');
+    }
 }
 
 // ===== Modal (Add Record) =====
@@ -1133,6 +1337,11 @@ function setupExport() {
             'Driver Name', 'Truck', 'Date', 'Start Odometer', 'End Odometer', 'Total Miles', 'Missing Miles', 'Notes'
         ], 'report_export.csv');
     });
+
+    // Save to Excel buttons
+    document.getElementById('saveFuelExcel').addEventListener('click', function() { saveToExcel('fuel'); });
+    document.getElementById('saveLoadsExcel').addEventListener('click', function() { saveToExcel('loads'); });
+    document.getElementById('saveReportExcel').addEventListener('click', function() { saveToExcel('report'); });
 }
 
 function exportCSV(data, fields, headers, filename) {
@@ -1298,6 +1507,11 @@ function esc(val) {
     var div = document.createElement('div');
     div.appendChild(document.createTextNode(s));
     return div.innerHTML;
+}
+
+function escAttr(val) {
+    if (val == null || val === '') return '';
+    return String(val).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function num(val) {
