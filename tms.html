@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NS TMS - Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <div class="nav-logo">NS</div>
+            <span class="nav-title">NS TMS</span>
+        </div>
+        <div class="nav-right">
+            <span class="nav-user" id="navUser">Admin</span>
+            <button class="btn btn-sm btn-outline" id="logoutBtn">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3>Navigation</h3>
+                <ul class="sidebar-nav">
+                    <li class="active" data-tab="fuel"><span class="icon">&#9981;</span> Fuel</li>
+                    <li data-tab="loads"><span class="icon">&#128666;</span> Loads</li>
+                    <li data-tab="report"><span class="icon">&#128202;</span> Report</li>
+                    <li data-tab="upload"><span class="icon">&#128228;</span> Upload Files</li>
+                </ul>
+            </div>
+            <div class="sidebar-section">
+                <h3>Quick Stats</h3>
+                <div class="stat-card">
+                    <span class="stat-label">Total Fuel Records</span>
+                    <span class="stat-value" id="statFuel">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Total Load Records</span>
+                    <span class="stat-value" id="statLoads">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Total Fuel Cost</span>
+                    <span class="stat-value" id="statFuelCost">$0</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content">
+            <!-- Filters Bar -->
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label>Start Date</label>
+                    <input type="date" id="filterStartDate">
+                </div>
+                <div class="filter-group">
+                    <label>End Date</label>
+                    <input type="date" id="filterEndDate">
+                </div>
+                <div class="filter-group">
+                    <label>Driver</label>
+                    <select id="filterDriver">
+                        <option value="">All Drivers</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Truck</label>
+                    <select id="filterTruck">
+                        <option value="">All Trucks</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Trailer</label>
+                    <select id="filterTrailer">
+                        <option value="">All Trailers</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-primary" id="applyFilters">Apply</button>
+                    <button class="btn btn-outline" id="clearFilters">Clear</button>
+                </div>
+            </div>
+
+            <!-- Tab: Fuel -->
+            <div class="tab-content active" id="tab-fuel">
+                <div class="content-header">
+                    <h2>Fuel Transactions</h2>
+                    <div class="content-actions">
+                        <button class="btn btn-sm btn-outline" id="exportFuelCSV">Export CSV</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table" id="fuelTable">
+                        <thead>
+                            <tr>
+                                <th>Card #</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Invoice</th>
+                                <th>Unit/Truck</th>
+                                <th>Driver</th>
+                                <th>Location</th>
+                                <th>City</th>
+                                <th>State</th>
+                                <th>Item</th>
+                                <th>Unit Price</th>
+                                <th>Qty</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="11" class="text-right"><strong>Total:</strong></td>
+                                <td id="fuelTotalQty"><strong>0</strong></td>
+                                <td id="fuelTotalAmt"><strong>$0.00</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab: Loads -->
+            <div class="tab-content" id="tab-loads">
+                <div class="content-header">
+                    <h2>Load Records</h2>
+                    <div class="content-actions">
+                        <button class="btn btn-sm btn-outline" id="exportLoadsCSV">Export CSV</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table" id="loadsTable">
+                        <thead>
+                            <tr>
+                                <th>Invoice ID</th>
+                                <th>Load #</th>
+                                <th>Broker</th>
+                                <th>Pick Date</th>
+                                <th>Pickup</th>
+                                <th>Drop Date</th>
+                                <th>Dropoff</th>
+                                <th>Driver</th>
+                                <th>Truck</th>
+                                <th>Trailer</th>
+                                <th>Shipping ID</th>
+                                <th>PU Datetime</th>
+                                <th>DO Datetime</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab: Report -->
+            <div class="tab-content" id="tab-report">
+                <div class="content-header">
+                    <h2>Driver Earning Report</h2>
+                    <div class="content-actions">
+                        <button class="btn btn-sm btn-outline" id="exportReportCSV">Export CSV</button>
+                    </div>
+                </div>
+                <!-- Report Summary Cards -->
+                <div class="report-summary">
+                    <div class="report-card">
+                        <span class="report-card-label">Driver</span>
+                        <span class="report-card-value" id="rptDriver">--</span>
+                    </div>
+                    <div class="report-card">
+                        <span class="report-card-label">Truck</span>
+                        <span class="report-card-value" id="rptTruck">--</span>
+                    </div>
+                    <div class="report-card">
+                        <span class="report-card-label">Period</span>
+                        <span class="report-card-value" id="rptPeriod">--</span>
+                    </div>
+                    <div class="report-card highlight">
+                        <span class="report-card-label">Total Miles</span>
+                        <span class="report-card-value" id="rptTotalMiles">0</span>
+                    </div>
+                    <div class="report-card highlight">
+                        <span class="report-card-label">Total Fuel Cost</span>
+                        <span class="report-card-value" id="rptFuelCost">$0</span>
+                    </div>
+                    <div class="report-card highlight">
+                        <span class="report-card-label">Total Loads</span>
+                        <span class="report-card-value" id="rptTotalLoads">0</span>
+                    </div>
+                </div>
+                <!-- Miles Per Day Table -->
+                <div class="content-header" style="margin-top:20px;">
+                    <h3>Miles Per Day (Odometer Tracking)</h3>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table" id="reportMilesTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Start Odometer</th>
+                                <th>End Odometer</th>
+                                <th>Total Miles</th>
+                                <th>Missing Miles</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-right"><strong>Totals:</strong></td>
+                                <td id="rptMilesTotal"><strong>0</strong></td>
+                                <td id="rptMissingTotal"><strong>0</strong></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <!-- Fuel Summary Table -->
+                <div class="content-header" style="margin-top:20px;">
+                    <h3>Fuel Summary</h3>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table" id="reportFuelTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Location</th>
+                                <th>Item</th>
+                                <th>Gallons</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-right"><strong>Total:</strong></td>
+                                <td id="rptFuelGallons"><strong>0</strong></td>
+                                <td id="rptFuelTotal"><strong>$0</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <!-- Load Summary Table -->
+                <div class="content-header" style="margin-top:20px;">
+                    <h3>Load Summary</h3>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table" id="reportLoadsTable">
+                        <thead>
+                            <tr>
+                                <th>Invoice ID</th>
+                                <th>Pick Date</th>
+                                <th>Pickup</th>
+                                <th>Drop Date</th>
+                                <th>Dropoff</th>
+                                <th>Trailer</th>
+                                <th>Shipping ID</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab: Upload -->
+            <div class="tab-content" id="tab-upload">
+                <div class="content-header">
+                    <h2>Upload Monthly Files</h2>
+                </div>
+                <div class="upload-section">
+                    <div class="upload-card">
+                        <h3>&#9981; Upload Fuel File</h3>
+                        <p>Upload monthly fuel transaction Excel file (.xlsx)</p>
+                        <p class="upload-hint">Expected columns: Card #, Tran Date, Trans. Time, Invoice, Unit, Driver Name, Odometer, Location Name, City, State/Prov, Fees, Item, Unit Price, Qty, Amt, DB, Currency</p>
+                        <input type="file" id="fuelFileInput" accept=".xlsx,.xls,.csv" class="file-input">
+                        <label for="fuelFileInput" class="btn btn-primary file-label">Choose Fuel File</label>
+                        <span class="file-name" id="fuelFileName">No file chosen</span>
+                        <button class="btn btn-primary" id="uploadFuelBtn" disabled>Upload & Load Fuel Data</button>
+                    </div>
+                    <div class="upload-card">
+                        <h3>&#128666; Upload Loads File</h3>
+                        <p>Upload monthly load records Excel file (.xlsx)</p>
+                        <p class="upload-hint">Expected columns: InvoiceID, Load #, Broker, Pick Date, Pickup, Drop Date, Dropoff, Driver, TruckName, Trailer, Shipping ID, Pickup Datetime, Delivery Datetime, Notes</p>
+                        <input type="file" id="loadsFileInput" accept=".xlsx,.xls,.csv" class="file-input">
+                        <label for="loadsFileInput" class="btn btn-primary file-label">Choose Loads File</label>
+                        <span class="file-name" id="loadsFileName">No file chosen</span>
+                        <button class="btn btn-primary" id="uploadLoadsBtn" disabled>Upload & Load Loads Data</button>
+                    </div>
+                    <div class="upload-card">
+                        <h3>&#128202; Upload Report File (Optional)</h3>
+                        <p>Upload the combined report Excel file with Odometer/Miles data</p>
+                        <p class="upload-hint">Should contain a "Report Date - Date" sheet with daily odometer readings, or a sheet with columns: Date, Start Odo, End Odo, Total Mile, Missing Miles, Notes</p>
+                        <input type="file" id="reportFileInput" accept=".xlsx,.xls,.csv" class="file-input">
+                        <label for="reportFileInput" class="btn btn-primary file-label">Choose Report File</label>
+                        <span class="file-name" id="reportFileName">No file chosen</span>
+                        <button class="btn btn-primary" id="uploadReportBtn" disabled>Upload & Load Report Data</button>
+                    </div>
+                </div>
+                <!-- Stored Data -->
+                <div class="content-header" style="margin-top: 30px;">
+                    <h2>Stored Data Files</h2>
+                </div>
+                <div class="stored-files" id="storedFilesList">
+                    <p class="empty-state">No files stored yet. Upload files above to get started.</p>
+                </div>
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-outline btn-danger" id="clearAllData">Clear All Stored Data</button>
+                    <button class="btn btn-outline" id="loadSampleData">Load Sample Data</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Toast notification -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
