@@ -199,7 +199,7 @@ function renderFuelTable() {
     var totalAmt = 0;
 
     if (filteredFuel.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="14" class="empty-state">No fuel records found. Upload a fuel file to get started.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="18" class="empty-state">No fuel records found. Upload a fuel file to get started.</td></tr>';
     } else {
         filteredFuel.forEach(function(r) {
             var realIdx = fuelData.indexOf(r);
@@ -211,13 +211,17 @@ function renderFuelTable() {
                 '<td>' + esc(r.invoice) + '</td>' +
                 '<td>' + esc(r.unit) + '</td>' +
                 '<td>' + esc(r.driverName) + '</td>' +
+                '<td class="amount-cell">' + esc(r.odometer) + '</td>' +
                 '<td>' + esc(r.locationName) + '</td>' +
                 '<td>' + esc(r.city) + '</td>' +
                 '<td>' + esc(r.state) + '</td>' +
+                '<td class="amount-cell">' + num(r.fees) + '</td>' +
                 '<td>' + esc(r.item) + '</td>' +
                 '<td class="amount-cell">$' + num(r.unitPrice) + '</td>' +
                 '<td class="amount-cell">' + num(r.qty) + '</td>' +
                 '<td class="amount-cell">$' + num(r.amt) + '</td>' +
+                '<td>' + esc(r.db) + '</td>' +
+                '<td>' + esc(r.currency) + '</td>' +
                 '<td><button class="btn-delete" data-type="fuel" data-idx="' + realIdx + '">Delete</button></td>';
             tbody.appendChild(tr);
             totalQty += (parseFloat(r.qty) || 0);
@@ -240,12 +244,16 @@ function renderLoadsTable() {
     tbody.innerHTML = '';
 
     if (filteredLoads.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No load records found. Upload a loads file to get started.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="15" class="empty-state">No load records found. Upload a loads file to get started.</td></tr>';
     } else {
         filteredLoads.forEach(function(r) {
             var realIdx = loadsData.indexOf(r);
             var tr = document.createElement('tr');
+            if (r.notes) tr.classList.add('highlight-row');
             tr.innerHTML =
+                '<td>' + esc(r.invoiceId) + '</td>' +
+                '<td>' + esc(r.loadNum) + '</td>' +
+                '<td>' + esc(r.broker) + '</td>' +
                 '<td>' + formatDate(r.pickDate) + '</td>' +
                 '<td>' + esc(r.pickup) + '</td>' +
                 '<td>' + formatDate(r.dropDate) + '</td>' +
@@ -253,6 +261,10 @@ function renderLoadsTable() {
                 '<td>' + esc(r.driver) + '</td>' +
                 '<td>' + esc(r.truck) + '</td>' +
                 '<td>' + esc(r.trailer) + '</td>' +
+                '<td>' + esc(r.shippingId) + '</td>' +
+                '<td>' + esc(r.puDatetime) + '</td>' +
+                '<td>' + esc(r.doDatetime) + '</td>' +
+                '<td>' + esc(r.notes) + '</td>' +
                 '<td><button class="btn-delete" data-type="loads" data-idx="' + realIdx + '">Delete</button></td>';
             tbody.appendChild(tr);
         });
@@ -324,12 +336,14 @@ function renderReport() {
     var totalMissing = 0;
 
     if (filteredReport.length === 0) {
-        milesBody.innerHTML = '<tr><td colspan="6" class="empty-state">No odometer/miles data. Upload a report file with miles data.</td></tr>';
+        milesBody.innerHTML = '<tr><td colspan="8" class="empty-state">No odometer/miles data. Upload a report file with miles data.</td></tr>';
     } else {
         filteredReport.forEach(function(r) {
             var tr = document.createElement('tr');
             if (r.missingMiles > 0) tr.classList.add('highlight-row');
             tr.innerHTML =
+                '<td>' + esc(r.driverName || driver) + '</td>' +
+                '<td>' + esc(r.truck || truck) + '</td>' +
                 '<td>' + formatDate(r.date) + '</td>' +
                 '<td class="amount-cell">' + esc(r.startOdo) + '</td>' +
                 '<td class="amount-cell">' + esc(r.endOdo) + '</td>' +
@@ -366,22 +380,29 @@ function renderReport() {
     document.getElementById('rptFuelGallons').innerHTML = '<strong>' + fuelTotalGal.toFixed(2) + '</strong>';
     document.getElementById('rptFuelTotal').innerHTML = '<strong>$' + fuelTotalAmt.toFixed(2) + '</strong>';
 
-    // Load Summary in report (D-J columns)
+    // Load Summary in report (all columns matching Loads.xlsx)
     var loadsBody = document.querySelector('#reportLoadsTable tbody');
     loadsBody.innerHTML = '';
     if (filteredLoads.length === 0) {
-        loadsBody.innerHTML = '<tr><td colspan="7" class="empty-state">No load data for this period.</td></tr>';
+        loadsBody.innerHTML = '<tr><td colspan="14" class="empty-state">No load data for this period.</td></tr>';
     } else {
         filteredLoads.forEach(function(r) {
             var tr = document.createElement('tr');
             tr.innerHTML =
+                '<td>' + esc(r.invoiceId) + '</td>' +
+                '<td>' + esc(r.loadNum) + '</td>' +
+                '<td>' + esc(r.broker) + '</td>' +
                 '<td>' + formatDate(r.pickDate) + '</td>' +
                 '<td>' + esc(r.pickup) + '</td>' +
                 '<td>' + formatDate(r.dropDate) + '</td>' +
                 '<td>' + esc(r.dropoff) + '</td>' +
                 '<td>' + esc(r.driver) + '</td>' +
                 '<td>' + esc(r.truck) + '</td>' +
-                '<td>' + esc(r.trailer) + '</td>';
+                '<td>' + esc(r.trailer) + '</td>' +
+                '<td>' + esc(r.shippingId) + '</td>' +
+                '<td>' + esc(r.puDatetime) + '</td>' +
+                '<td>' + esc(r.doDatetime) + '</td>' +
+                '<td>' + esc(r.notes) + '</td>';
             loadsBody.appendChild(tr);
         });
     }
@@ -535,6 +556,14 @@ function openAddLoadModal() {
     document.getElementById('modalTitle').textContent = 'Add Load Record';
     document.getElementById('modalBody').innerHTML =
         '<div class="form-row">' +
+            '<div class="form-group"><label>InvoiceID</label><input type="text" id="mLoadInvoiceId"></div>' +
+            '<div class="form-group"><label>Load #</label><input type="text" id="mLoadNum"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Broker</label><input type="text" id="mLoadBroker"></div>' +
+            '<div class="form-group"><label>Shipping ID</label><input type="text" id="mLoadShippingId"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
             '<div class="form-group"><label>Pick Date</label><input type="date" id="mLoadPickDate"></div>' +
             '<div class="form-group"><label>Pickup Location</label><input type="text" id="mLoadPickup"></div>' +
         '</div>' +
@@ -546,13 +575,20 @@ function openAddLoadModal() {
             '<div class="form-group"><label>Driver</label><input type="text" id="mLoadDriver"></div>' +
             '<div class="form-group"><label>Truck</label><input type="text" id="mLoadTruck"></div>' +
         '</div>' +
-        '<div class="form-group"><label>Trailer</label><input type="text" id="mLoadTrailer"></div>';
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Trailer</label><input type="text" id="mLoadTrailer"></div>' +
+            '<div class="form-group"><label>Notes</label><input type="text" id="mLoadNotes"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Pickup Datetime</label><input type="text" id="mLoadPuDatetime" placeholder="e.g. PU 11/03 | Time 03PM"></div>' +
+            '<div class="form-group"><label>Delivery Datetime</label><input type="text" id="mLoadDoDatetime" placeholder="e.g. DO 11/03 | Local Miles"></div>' +
+        '</div>';
 
     document.getElementById('modalSave').onclick = function() {
         var record = {
-            invoiceId: '',
-            loadNum: '',
-            broker: '',
+            invoiceId: document.getElementById('mLoadInvoiceId').value,
+            loadNum: document.getElementById('mLoadNum').value,
+            broker: document.getElementById('mLoadBroker').value,
             pickDate: document.getElementById('mLoadPickDate').value,
             pickup: document.getElementById('mLoadPickup').value,
             dropDate: document.getElementById('mLoadDropDate').value,
@@ -560,10 +596,10 @@ function openAddLoadModal() {
             driver: document.getElementById('mLoadDriver').value,
             truck: document.getElementById('mLoadTruck').value,
             trailer: document.getElementById('mLoadTrailer').value,
-            shippingId: '',
-            puDatetime: '',
-            doDatetime: '',
-            notes: ''
+            shippingId: document.getElementById('mLoadShippingId').value,
+            puDatetime: document.getElementById('mLoadPuDatetime').value,
+            doDatetime: document.getElementById('mLoadDoDatetime').value,
+            notes: document.getElementById('mLoadNotes').value
         };
         if (!record.pickDate) {
             showToast('Pick Date is required', 'error');
@@ -897,6 +933,8 @@ function parseReportWorkbook(workbook, fileName, sheetNameOverride) {
 
     var newData = [];
     var headerIdx = -1;
+    var driverNameCol = -1;
+    var truckCol = -1;
     var dateCol = -1;
     var startOdoCol = -1;
     var endOdoCol = -1;
@@ -910,6 +948,8 @@ function parseReportWorkbook(workbook, fileName, sheetNameOverride) {
         if (!row) continue;
         for (var j = 0; j < row.length; j++) {
             var cellStr = String(row[j]).toLowerCase().trim();
+            if ((cellStr.indexOf('driver') !== -1) && driverNameCol === -1) driverNameCol = j;
+            if ((cellStr.indexOf('truck') !== -1) && truckCol === -1) truckCol = j;
             if ((cellStr === 'date' || cellStr === 'dates') && dateCol === -1) { dateCol = j; headerIdx = i; }
             if (cellStr.indexOf('start odo') !== -1 || cellStr.indexOf('start_odo') !== -1) startOdoCol = j;
             if (cellStr.indexOf('end odo') !== -1 || cellStr.indexOf('end_odo') !== -1) endOdoCol = j;
@@ -930,13 +970,17 @@ function parseReportWorkbook(workbook, fileName, sheetNameOverride) {
                 if (cellStr === 'date' || cellStr === 'dates') {
                     dateCol = j;
                     headerIdx = i;
+                    driverNameCol = -1;
+                    truckCol = -1;
                     startOdoCol = -1;
                     endOdoCol = -1;
                     totalMileCol = -1;
                     missingCol = -1;
-                    // Re-scan this row from j+1
-                    for (var k = j + 1; k < row.length; k++) {
+                    // Re-scan this row from j-2 (driver/truck may be before date) through end
+                    for (var k = Math.max(0, j - 5); k < row.length; k++) {
                         var cs = String(row[k]).toLowerCase().trim();
+                        if (cs.indexOf('driver') !== -1 && driverNameCol === -1) driverNameCol = k;
+                        if (cs.indexOf('truck') !== -1 && truckCol === -1) truckCol = k;
                         if (cs.indexOf('start odo') !== -1) startOdoCol = k;
                         if (cs.indexOf('end odo') !== -1) endOdoCol = k;
                         if (cs.indexOf('total mile') !== -1) totalMileCol = k;
@@ -985,6 +1029,8 @@ function parseReportWorkbook(workbook, fileName, sheetNameOverride) {
         if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
 
         newData.push({
+            driverName: driverNameCol !== -1 && driverNameCol < row.length ? (row[driverNameCol] || '') : '',
+            truck: truckCol !== -1 && truckCol < row.length ? (row[truckCol] || '') : '',
             date: dateStr,
             startOdo: row[startOdoCol] || 0,
             endOdo: row[endOdoCol] || 0,
@@ -1021,17 +1067,19 @@ function setupExport() {
 
     document.getElementById('exportLoadsCSV').addEventListener('click', function() {
         exportCSV(filteredLoads, [
-            'pickDate', 'pickup', 'dropDate', 'dropoff', 'driver', 'truck', 'trailer'
+            'invoiceId', 'loadNum', 'broker', 'pickDate', 'pickup', 'dropDate', 'dropoff',
+            'driver', 'truck', 'trailer', 'shippingId', 'puDatetime', 'doDatetime', 'notes'
         ], [
-            'Pick Date', 'Pickup', 'Drop Date', 'Dropoff', 'Driver', 'Truck', 'Trailer'
+            'InvoiceID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date', 'Dropoff',
+            'Driver', 'TruckName', 'Trailer', 'Shipping ID', 'Pickup Datetime', 'Delivery Datetime', 'Notes'
         ], 'loads_export.csv');
     });
 
     document.getElementById('exportReportCSV').addEventListener('click', function() {
         exportCSV(filteredReport, [
-            'date', 'startOdo', 'endOdo', 'totalMiles', 'missingMiles', 'notes'
+            'driverName', 'truck', 'date', 'startOdo', 'endOdo', 'totalMiles', 'missingMiles', 'notes'
         ], [
-            'Date', 'Start Odometer', 'End Odometer', 'Total Miles', 'Missing Miles', 'Notes'
+            'Driver Name', 'Truck', 'Date', 'Start Odometer', 'End Odometer', 'Total Miles', 'Missing Miles', 'Notes'
         ], 'report_export.csv');
     });
 }
@@ -1104,16 +1152,16 @@ function loadSampleData() {
     ];
 
     var sampleReport = [
-        {date:"2025-11-01",startOdo:57685,endOdo:57858,totalMiles:173,missingMiles:0,notes:""},
-        {date:"2025-11-02",startOdo:57858,endOdo:57858,totalMiles:0,missingMiles:0,notes:""},
-        {date:"2025-11-03",startOdo:57858,endOdo:57858,totalMiles:0,missingMiles:428,notes:""},
-        {date:"2025-11-03",startOdo:58286,endOdo:58924,totalMiles:638,missingMiles:0,notes:""},
-        {date:"2025-11-04",startOdo:58924,endOdo:59067,totalMiles:143,missingMiles:136,notes:""},
-        {date:"2025-11-04",startOdo:59203,endOdo:59587,totalMiles:384,missingMiles:0,notes:""},
-        {date:"2025-11-05",startOdo:59587,endOdo:60274,totalMiles:687,missingMiles:0,notes:""},
-        {date:"2025-11-06",startOdo:60274,endOdo:60274,totalMiles:0,missingMiles:15,notes:""},
-        {date:"2025-11-06",startOdo:60289,endOdo:60981,totalMiles:692,missingMiles:0,notes:""},
-        {date:"2025-11-07",startOdo:60981,endOdo:61048,totalMiles:67,missingMiles:134,notes:""}
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-01",startOdo:57685,endOdo:57858,totalMiles:173,missingMiles:0,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-02",startOdo:57858,endOdo:57858,totalMiles:0,missingMiles:0,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-03",startOdo:57858,endOdo:57858,totalMiles:0,missingMiles:428,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-03",startOdo:58286,endOdo:58924,totalMiles:638,missingMiles:0,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-04",startOdo:58924,endOdo:59067,totalMiles:143,missingMiles:136,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-04",startOdo:59203,endOdo:59587,totalMiles:384,missingMiles:0,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-05",startOdo:59587,endOdo:60274,totalMiles:687,missingMiles:0,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-06",startOdo:60274,endOdo:60274,totalMiles:0,missingMiles:15,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-06",startOdo:60289,endOdo:60981,totalMiles:692,missingMiles:0,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-07",startOdo:60981,endOdo:61048,totalMiles:67,missingMiles:134,notes:""}
     ];
 
     fuelData = sampleFuel;

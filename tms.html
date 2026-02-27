@@ -100,28 +100,32 @@
                         <thead>
                             <tr>
                                 <th>Card #</th>
-                                <th>Date</th>
-                                <th>Time</th>
+                                <th>Tran Date</th>
+                                <th>Trans. Time</th>
                                 <th>Invoice</th>
-                                <th>Unit/Truck</th>
-                                <th>Driver</th>
-                                <th>Location</th>
+                                <th>Unit</th>
+                                <th>Driver Name</th>
+                                <th>Odometer</th>
+                                <th>Location Name</th>
                                 <th>City</th>
-                                <th>State</th>
+                                <th>State/Prov</th>
+                                <th>Fees</th>
                                 <th>Item</th>
                                 <th>Unit Price</th>
                                 <th>Qty</th>
-                                <th>Amount</th>
+                                <th>Amt</th>
+                                <th>DB</th>
+                                <th>Currency</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
                         <tfoot>
                             <tr>
-                                <td colspan="11" class="text-right"><strong>Total:</strong></td>
+                                <td colspan="13" class="text-right"><strong>Total:</strong></td>
                                 <td id="fuelTotalQty"><strong>0</strong></td>
                                 <td id="fuelTotalAmt"><strong>$0.00</strong></td>
-                                <td></td>
+                                <td colspan="3"></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -141,13 +145,20 @@
                     <table class="data-table" id="loadsTable">
                         <thead>
                             <tr>
+                                <th>InvoiceID</th>
+                                <th>Load #</th>
+                                <th>Broker</th>
                                 <th>Pick Date</th>
                                 <th>Pickup</th>
                                 <th>Drop Date</th>
                                 <th>Dropoff</th>
                                 <th>Driver</th>
-                                <th>Truck</th>
+                                <th>TruckName</th>
                                 <th>Trailer</th>
+                                <th>Shipping ID</th>
+                                <th>Pickup Datetime</th>
+                                <th>Delivery Datetime</th>
+                                <th>Notes</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -199,9 +210,11 @@
                     <table class="data-table" id="reportMilesTable">
                         <thead>
                             <tr>
+                                <th>Driver Name</th>
+                                <th>Truck</th>
                                 <th>Date</th>
-                                <th>Start Odometer</th>
-                                <th>End Odometer</th>
+                                <th>Start Odo</th>
+                                <th>End Odo</th>
                                 <th>Total Miles</th>
                                 <th>Missing Miles</th>
                                 <th>Notes</th>
@@ -210,7 +223,7 @@
                         <tbody></tbody>
                         <tfoot>
                             <tr>
-                                <td colspan="3" class="text-right"><strong>Totals:</strong></td>
+                                <td colspan="5" class="text-right"><strong>Totals:</strong></td>
                                 <td id="rptMilesTotal"><strong>0</strong></td>
                                 <td id="rptMissingTotal"><strong>0</strong></td>
                                 <td></td>
@@ -251,13 +264,20 @@
                     <table class="data-table" id="reportLoadsTable">
                         <thead>
                             <tr>
+                                <th>InvoiceID</th>
+                                <th>Load #</th>
+                                <th>Broker</th>
                                 <th>Pick Date</th>
                                 <th>Pickup</th>
                                 <th>Drop Date</th>
                                 <th>Dropoff</th>
                                 <th>Driver</th>
-                                <th>Truck</th>
+                                <th>TruckName</th>
                                 <th>Trailer</th>
+                                <th>Shipping ID</th>
+                                <th>Pickup Datetime</th>
+                                <th>Delivery Datetime</th>
+                                <th>Notes</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
