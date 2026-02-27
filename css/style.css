@@ -744,11 +744,9 @@ body {
     border-top: 1px solid var(--border);
 }
 
-/* ===== Delete Button in Tables ===== */
-.btn-delete {
+/* ===== Action Buttons in Tables ===== */
+.btn-delete, .btn-edit {
     background: none;
-    border: 1px solid var(--danger);
-    color: var(--danger);
     padding: 3px 8px;
     border-radius: 4px;
     font-size: 11px;
@@ -756,8 +754,37 @@ body {
     white-space: nowrap;
 }
 
+.btn-delete {
+    border: 1px solid var(--danger);
+    color: var(--danger);
+}
+
 .btn-delete:hover {
     background: #fef2f2;
+}
+
+.btn-edit {
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    margin-right: 4px;
+}
+
+.btn-edit:hover {
+    background: #eff6ff;
+}
+
+.btn-success {
+    background: #059669;
+    color: #fff;
+    border: 1px solid #059669;
+}
+
+.btn-success:hover {
+    background: #047857;
+}
+
+.actions-cell {
+    white-space: nowrap;
 }
 
 /* ===== Responsive ===== */
