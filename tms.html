@@ -91,6 +91,7 @@
                 <div class="content-header">
                     <h2>Fuel Transactions</h2>
                     <div class="content-actions">
+                        <button class="btn btn-sm btn-primary" id="addFuelBtn">+ Add Record</button>
                         <button class="btn btn-sm btn-outline" id="exportFuelCSV">Export CSV</button>
                     </div>
                 </div>
@@ -111,6 +112,7 @@
                                 <th>Unit Price</th>
                                 <th>Qty</th>
                                 <th>Amount</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -119,6 +121,7 @@
                                 <td colspan="11" class="text-right"><strong>Total:</strong></td>
                                 <td id="fuelTotalQty"><strong>0</strong></td>
                                 <td id="fuelTotalAmt"><strong>$0.00</strong></td>
+                                <td></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -130,6 +133,7 @@
                 <div class="content-header">
                     <h2>Load Records</h2>
                     <div class="content-actions">
+                        <button class="btn btn-sm btn-primary" id="addLoadBtn">+ Add Record</button>
                         <button class="btn btn-sm btn-outline" id="exportLoadsCSV">Export CSV</button>
                     </div>
                 </div>
@@ -151,6 +155,7 @@
                                 <th>PU Datetime</th>
                                 <th>DO Datetime</th>
                                 <th>Notes</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -273,33 +278,49 @@
                 <div class="content-header">
                     <h2>Upload Monthly Files</h2>
                 </div>
+                <!-- Combined Upload -->
+                <div class="upload-section">
+                    <div class="upload-card upload-card-featured">
+                        <h3>&#128196; Upload Combined Monthly File</h3>
+                        <p>Upload a single Excel file containing Loads, Fuel, and Report data on separate sheets</p>
+                        <p class="upload-hint">The file should have sheets named Loads, Fuel, and Report. Data ranges: Fuel A1:Q50, Loads D1:J49, Report miles R9:U50</p>
+                        <input type="file" id="combinedFileInput" accept=".xlsx,.xls" class="file-input">
+                        <label for="combinedFileInput" class="btn btn-primary file-label">Choose Monthly File</label>
+                        <span class="file-name" id="combinedFileName">No file chosen</span>
+                        <button class="btn btn-primary" id="uploadCombinedBtn" disabled>Upload & Load All Data</button>
+                    </div>
+                </div>
+                <!-- Individual Uploads -->
+                <div class="content-header" style="margin-top: 20px;">
+                    <h3>Or Upload Individual Files</h3>
+                </div>
                 <div class="upload-section">
                     <div class="upload-card">
-                        <h3>&#9981; Upload Fuel File</h3>
-                        <p>Upload monthly fuel transaction Excel file (.xlsx)</p>
-                        <p class="upload-hint">Expected columns: Card #, Tran Date, Trans. Time, Invoice, Unit, Driver Name, Odometer, Location Name, City, State/Prov, Fees, Item, Unit Price, Qty, Amt, DB, Currency</p>
+                        <h3>&#9981; Fuel File</h3>
+                        <p>Fuel transaction Excel file (.xlsx)</p>
+                        <p class="upload-hint">Columns A1:Q50 - Card #, Tran Date, Time, Invoice, Unit, Driver, Odometer, Location, City, State, Fees, Item, Unit Price, Qty, Amt, DB, Currency</p>
                         <input type="file" id="fuelFileInput" accept=".xlsx,.xls,.csv" class="file-input">
                         <label for="fuelFileInput" class="btn btn-primary file-label">Choose Fuel File</label>
                         <span class="file-name" id="fuelFileName">No file chosen</span>
-                        <button class="btn btn-primary" id="uploadFuelBtn" disabled>Upload & Load Fuel Data</button>
+                        <button class="btn btn-primary" id="uploadFuelBtn" disabled>Upload Fuel</button>
                     </div>
                     <div class="upload-card">
-                        <h3>&#128666; Upload Loads File</h3>
-                        <p>Upload monthly load records Excel file (.xlsx)</p>
-                        <p class="upload-hint">Expected columns: InvoiceID, Load #, Broker, Pick Date, Pickup, Drop Date, Dropoff, Driver, TruckName, Trailer, Shipping ID, Pickup Datetime, Delivery Datetime, Notes</p>
+                        <h3>&#128666; Loads File</h3>
+                        <p>Load records Excel file (.xlsx)</p>
+                        <p class="upload-hint">Columns D1:J49 - Pick Date, Pickup, Drop Date, Dropoff, Driver, Truck, Trailer (+ other columns if available)</p>
                         <input type="file" id="loadsFileInput" accept=".xlsx,.xls,.csv" class="file-input">
                         <label for="loadsFileInput" class="btn btn-primary file-label">Choose Loads File</label>
                         <span class="file-name" id="loadsFileName">No file chosen</span>
-                        <button class="btn btn-primary" id="uploadLoadsBtn" disabled>Upload & Load Loads Data</button>
+                        <button class="btn btn-primary" id="uploadLoadsBtn" disabled>Upload Loads</button>
                     </div>
                     <div class="upload-card">
-                        <h3>&#128202; Upload Report File (Optional)</h3>
-                        <p>Upload the combined report Excel file with Odometer/Miles data</p>
-                        <p class="upload-hint">Should contain a "Report Date - Date" sheet with daily odometer readings, or a sheet with columns: Date, Start Odo, End Odo, Total Mile, Missing Miles, Notes</p>
+                        <h3>&#128202; Report File</h3>
+                        <p>Report with Odometer/Miles data (.xlsx)</p>
+                        <p class="upload-hint">Miles data in columns R9:U50 (Date, Start Odo, End Odo, Total Miles)</p>
                         <input type="file" id="reportFileInput" accept=".xlsx,.xls,.csv" class="file-input">
                         <label for="reportFileInput" class="btn btn-primary file-label">Choose Report File</label>
                         <span class="file-name" id="reportFileName">No file chosen</span>
-                        <button class="btn btn-primary" id="uploadReportBtn" disabled>Upload & Load Report Data</button>
+                        <button class="btn btn-primary" id="uploadReportBtn" disabled>Upload Report</button>
                     </div>
                 </div>
                 <!-- Stored Data -->
@@ -316,6 +337,21 @@
             </div>
 
         </main>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modalContent">
+            <div class="modal-header">
+                <h3 id="modalTitle">Add Record</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="modalCancel">Cancel</button>
+                <button class="btn btn-primary" id="modalSave">Save</button>
+            </div>
+        </div>
     </div>
 
     <!-- Toast notification -->
