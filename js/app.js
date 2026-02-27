@@ -35,6 +35,10 @@ document.addEventListener('DOMContentLoaded', function() {
     setupActions();
     setupModal();
     renderAll();
+    // Auto-load from Excel data files if no data in localStorage
+    if (fuelData.length === 0 && loadsData.length === 0 && reportData.length === 0) {
+        loadFromDataFiles();
+    }
 });
 
 // ===== Data Loading =====
@@ -63,6 +67,53 @@ function saveData() {
         console.error('Error saving data:', e);
         showToast('Storage limit reached. Consider clearing old data.', 'error');
     }
+}
+
+// ===== Auto-load from Excel data files =====
+function loadFromDataFiles() {
+    var dataFiles = [
+        { url: 'data/Fuel.xlsx', type: 'fuel' },
+        { url: 'data/Loads.xlsx', type: 'loads' },
+        { url: 'data/Report.xlsx', type: 'report' }
+    ];
+    var loaded = 0;
+    var total = dataFiles.length;
+
+    dataFiles.forEach(function(fileInfo) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', fileInfo.url, true);
+        xhr.responseType = 'arraybuffer';
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                try {
+                    var data = new Uint8Array(xhr.response);
+                    var workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    if (fileInfo.type === 'fuel') {
+                        parseFuelWorkbook(workbook, fileInfo.url);
+                    } else if (fileInfo.type === 'loads') {
+                        parseLoadsWorkbook(workbook, fileInfo.url);
+                    } else if (fileInfo.type === 'report') {
+                        parseReportWorkbook(workbook, fileInfo.url);
+                    }
+                } catch (err) {
+                    console.warn('Could not parse ' + fileInfo.url + ':', err.message);
+                }
+            }
+            loaded++;
+            if (loaded === total) {
+                renderAll();
+                if (fuelData.length > 0 || loadsData.length > 0 || reportData.length > 0) {
+                    showToast('Data loaded from Excel files', 'success');
+                }
+            }
+        };
+        xhr.onerror = function() {
+            console.warn('Could not fetch ' + fileInfo.url);
+            loaded++;
+            if (loaded === total) renderAll();
+        };
+        xhr.send();
+    });
 }
 
 function saveFileRecord(name, type, rows) {
