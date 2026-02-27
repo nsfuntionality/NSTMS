@@ -199,10 +199,9 @@ function renderFuelTable() {
     var totalAmt = 0;
 
     if (filteredFuel.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="14" class="empty-state">No fuel records found. Upload a fuel file to get started.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="18" class="empty-state">No fuel records found. Upload a fuel file to get started.</td></tr>';
     } else {
-        filteredFuel.forEach(function(r, idx) {
-            // Find the real index in fuelData
+        filteredFuel.forEach(function(r) {
             var realIdx = fuelData.indexOf(r);
             var tr = document.createElement('tr');
             tr.innerHTML =
@@ -212,13 +211,17 @@ function renderFuelTable() {
                 '<td>' + esc(r.invoice) + '</td>' +
                 '<td>' + esc(r.unit) + '</td>' +
                 '<td>' + esc(r.driverName) + '</td>' +
+                '<td class="amount-cell">' + esc(r.odometer) + '</td>' +
                 '<td>' + esc(r.locationName) + '</td>' +
                 '<td>' + esc(r.city) + '</td>' +
                 '<td>' + esc(r.state) + '</td>' +
+                '<td class="amount-cell">' + num(r.fees) + '</td>' +
                 '<td>' + esc(r.item) + '</td>' +
                 '<td class="amount-cell">$' + num(r.unitPrice) + '</td>' +
                 '<td class="amount-cell">' + num(r.qty) + '</td>' +
                 '<td class="amount-cell">$' + num(r.amt) + '</td>' +
+                '<td>' + esc(r.db) + '</td>' +
+                '<td>' + esc(r.currency) + '</td>' +
                 '<td><button class="btn-delete" data-type="fuel" data-idx="' + realIdx + '">Delete</button></td>';
             tbody.appendChild(tr);
             totalQty += (parseFloat(r.qty) || 0);
@@ -229,7 +232,6 @@ function renderFuelTable() {
     document.getElementById('fuelTotalQty').innerHTML = '<strong>' + totalQty.toFixed(2) + '</strong>';
     document.getElementById('fuelTotalAmt').innerHTML = '<strong>$' + totalAmt.toFixed(2) + '</strong>';
 
-    // Attach delete handlers
     tbody.querySelectorAll('.btn-delete').forEach(function(btn) {
         btn.addEventListener('click', function() {
             deleteRecord(this.dataset.type, parseInt(this.dataset.idx));
@@ -244,7 +246,7 @@ function renderLoadsTable() {
     if (filteredLoads.length === 0) {
         tbody.innerHTML = '<tr><td colspan="15" class="empty-state">No load records found. Upload a loads file to get started.</td></tr>';
     } else {
-        filteredLoads.forEach(function(r, idx) {
+        filteredLoads.forEach(function(r) {
             var realIdx = loadsData.indexOf(r);
             var tr = document.createElement('tr');
             if (r.notes) tr.classList.add('highlight-row');
@@ -268,7 +270,6 @@ function renderLoadsTable() {
         });
     }
 
-    // Attach delete handlers
     tbody.querySelectorAll('.btn-delete').forEach(function(btn) {
         btn.addEventListener('click', function() {
             deleteRecord(this.dataset.type, parseInt(this.dataset.idx));
@@ -277,7 +278,6 @@ function renderLoadsTable() {
 }
 
 function renderReport() {
-    // Determine report meta from data
     var driver = '--';
     var truck = '--';
     var periodStart = '';
@@ -302,7 +302,6 @@ function renderReport() {
         if (truckNames.size) truck = Array.from(truckNames).join(', ');
     }
 
-    // Calculate period from all data
     var allDates = [];
     filteredFuel.forEach(function(r) { if (r.tranDate) allDates.push(r.tranDate); });
     filteredLoads.forEach(function(r) {
@@ -321,7 +320,6 @@ function renderReport() {
     document.getElementById('rptPeriod').textContent = periodStart && periodEnd
         ? formatDate(periodStart) + ' - ' + formatDate(periodEnd) : '--';
 
-    // Fuel totals
     var fuelTotalAmt = 0;
     var fuelTotalGal = 0;
     filteredFuel.forEach(function(r) {
@@ -331,19 +329,21 @@ function renderReport() {
     document.getElementById('rptFuelCost').textContent = '$' + fuelTotalAmt.toFixed(2);
     document.getElementById('rptTotalLoads').textContent = filteredLoads.length;
 
-    // Render Miles Per Day table
+    // Miles Per Day table
     var milesBody = document.querySelector('#reportMilesTable tbody');
     milesBody.innerHTML = '';
     var totalMiles = 0;
     var totalMissing = 0;
 
     if (filteredReport.length === 0) {
-        milesBody.innerHTML = '<tr><td colspan="6" class="empty-state">No odometer/miles data. Upload a report file with miles data.</td></tr>';
+        milesBody.innerHTML = '<tr><td colspan="8" class="empty-state">No odometer/miles data. Upload a report file with miles data.</td></tr>';
     } else {
         filteredReport.forEach(function(r) {
             var tr = document.createElement('tr');
             if (r.missingMiles > 0) tr.classList.add('highlight-row');
             tr.innerHTML =
+                '<td>' + esc(r.driverName || driver) + '</td>' +
+                '<td>' + esc(r.truck || truck) + '</td>' +
                 '<td>' + formatDate(r.date) + '</td>' +
                 '<td class="amount-cell">' + esc(r.startOdo) + '</td>' +
                 '<td class="amount-cell">' + esc(r.endOdo) + '</td>' +
@@ -360,7 +360,7 @@ function renderReport() {
     document.getElementById('rptMilesTotal').innerHTML = '<strong>' + totalMiles.toLocaleString() + '</strong>';
     document.getElementById('rptMissingTotal').innerHTML = '<strong>' + totalMissing.toLocaleString() + '</strong>';
 
-    // Render Fuel Summary in report
+    // Fuel Summary in report
     var fuelBody = document.querySelector('#reportFuelTable tbody');
     fuelBody.innerHTML = '';
     if (filteredFuel.length === 0) {
@@ -380,23 +380,28 @@ function renderReport() {
     document.getElementById('rptFuelGallons').innerHTML = '<strong>' + fuelTotalGal.toFixed(2) + '</strong>';
     document.getElementById('rptFuelTotal').innerHTML = '<strong>$' + fuelTotalAmt.toFixed(2) + '</strong>';
 
-    // Render Load Summary in report
+    // Load Summary in report (all columns matching Loads.xlsx)
     var loadsBody = document.querySelector('#reportLoadsTable tbody');
     loadsBody.innerHTML = '';
     if (filteredLoads.length === 0) {
-        loadsBody.innerHTML = '<tr><td colspan="8" class="empty-state">No load data for this period.</td></tr>';
+        loadsBody.innerHTML = '<tr><td colspan="14" class="empty-state">No load data for this period.</td></tr>';
     } else {
         filteredLoads.forEach(function(r) {
             var tr = document.createElement('tr');
-            if (r.notes) tr.classList.add('highlight-row');
             tr.innerHTML =
                 '<td>' + esc(r.invoiceId) + '</td>' +
+                '<td>' + esc(r.loadNum) + '</td>' +
+                '<td>' + esc(r.broker) + '</td>' +
                 '<td>' + formatDate(r.pickDate) + '</td>' +
                 '<td>' + esc(r.pickup) + '</td>' +
                 '<td>' + formatDate(r.dropDate) + '</td>' +
                 '<td>' + esc(r.dropoff) + '</td>' +
+                '<td>' + esc(r.driver) + '</td>' +
+                '<td>' + esc(r.truck) + '</td>' +
                 '<td>' + esc(r.trailer) + '</td>' +
                 '<td>' + esc(r.shippingId) + '</td>' +
+                '<td>' + esc(r.puDatetime) + '</td>' +
+                '<td>' + esc(r.doDatetime) + '</td>' +
                 '<td>' + esc(r.notes) + '</td>';
             loadsBody.appendChild(tr);
         });
@@ -551,10 +556,13 @@ function openAddLoadModal() {
     document.getElementById('modalTitle').textContent = 'Add Load Record';
     document.getElementById('modalBody').innerHTML =
         '<div class="form-row">' +
-            '<div class="form-group"><label>Invoice ID</label><input type="text" id="mLoadInvoice"></div>' +
+            '<div class="form-group"><label>InvoiceID</label><input type="text" id="mLoadInvoiceId"></div>' +
             '<div class="form-group"><label>Load #</label><input type="text" id="mLoadNum"></div>' +
         '</div>' +
-        '<div class="form-group"><label>Broker</label><input type="text" id="mLoadBroker"></div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Broker</label><input type="text" id="mLoadBroker"></div>' +
+            '<div class="form-group"><label>Shipping ID</label><input type="text" id="mLoadShippingId"></div>' +
+        '</div>' +
         '<div class="form-row">' +
             '<div class="form-group"><label>Pick Date</label><input type="date" id="mLoadPickDate"></div>' +
             '<div class="form-group"><label>Pickup Location</label><input type="text" id="mLoadPickup"></div>' +
@@ -569,17 +577,16 @@ function openAddLoadModal() {
         '</div>' +
         '<div class="form-row">' +
             '<div class="form-group"><label>Trailer</label><input type="text" id="mLoadTrailer"></div>' +
-            '<div class="form-group"><label>Shipping ID</label><input type="text" id="mLoadShipping"></div>' +
+            '<div class="form-group"><label>Notes</label><input type="text" id="mLoadNotes"></div>' +
         '</div>' +
         '<div class="form-row">' +
-            '<div class="form-group"><label>PU Datetime</label><input type="text" id="mLoadPU" placeholder="PU 11/03 | Time 02PM"></div>' +
-            '<div class="form-group"><label>DO Datetime</label><input type="text" id="mLoadDO" placeholder="DO 11/04 | Local Miles"></div>' +
-        '</div>' +
-        '<div class="form-group"><label>Notes</label><input type="text" id="mLoadNotes"></div>';
+            '<div class="form-group"><label>Pickup Datetime</label><input type="text" id="mLoadPuDatetime" placeholder="e.g. PU 11/03 | Time 03PM"></div>' +
+            '<div class="form-group"><label>Delivery Datetime</label><input type="text" id="mLoadDoDatetime" placeholder="e.g. DO 11/03 | Local Miles"></div>' +
+        '</div>';
 
     document.getElementById('modalSave').onclick = function() {
         var record = {
-            invoiceId: document.getElementById('mLoadInvoice').value,
+            invoiceId: document.getElementById('mLoadInvoiceId').value,
             loadNum: document.getElementById('mLoadNum').value,
             broker: document.getElementById('mLoadBroker').value,
             pickDate: document.getElementById('mLoadPickDate').value,
@@ -589,9 +596,9 @@ function openAddLoadModal() {
             driver: document.getElementById('mLoadDriver').value,
             truck: document.getElementById('mLoadTruck').value,
             trailer: document.getElementById('mLoadTrailer').value,
-            shippingId: document.getElementById('mLoadShipping').value,
-            puDatetime: document.getElementById('mLoadPU').value,
-            doDatetime: document.getElementById('mLoadDO').value,
+            shippingId: document.getElementById('mLoadShippingId').value,
+            puDatetime: document.getElementById('mLoadPuDatetime').value,
+            doDatetime: document.getElementById('mLoadDoDatetime').value,
             notes: document.getElementById('mLoadNotes').value
         };
         if (!record.pickDate) {
@@ -669,42 +676,35 @@ function parseCombinedFile(file) {
             var workbook = XLSX.read(data, { type: 'array', cellDates: true });
             var totalRecords = { fuel: 0, loads: 0, report: 0 };
 
-            // Find and parse Fuel sheet
             var fuelSheet = workbook.SheetNames.find(function(n) {
                 return n.toLowerCase().indexOf('fuel') !== -1;
             });
             if (fuelSheet) {
-                var count = parseFuelWorkbook(workbook, file.name, fuelSheet);
-                totalRecords.fuel = count || 0;
+                totalRecords.fuel = parseFuelWorkbook(workbook, file.name, fuelSheet) || 0;
             }
 
-            // Find and parse Loads sheet
             var loadsSheet = workbook.SheetNames.find(function(n) {
                 return n.toLowerCase().indexOf('load') !== -1;
             });
             if (loadsSheet) {
-                var count = parseLoadsWorkbook(workbook, file.name, loadsSheet);
-                totalRecords.loads = count || 0;
+                totalRecords.loads = parseLoadsWorkbook(workbook, file.name, loadsSheet) || 0;
             }
 
-            // Find and parse Report sheet
             var reportSheet = workbook.SheetNames.find(function(n) {
                 return n.toLowerCase().indexOf('report') !== -1;
             });
             if (reportSheet) {
-                var count = parseReportWorkbook(workbook, file.name, reportSheet);
-                totalRecords.report = count || 0;
+                totalRecords.report = parseReportWorkbook(workbook, file.name, reportSheet) || 0;
             }
 
-            var msg = 'Loaded from ' + file.name + ': ';
             var parts = [];
             if (totalRecords.fuel > 0) parts.push(totalRecords.fuel + ' fuel');
             if (totalRecords.loads > 0) parts.push(totalRecords.loads + ' loads');
             if (totalRecords.report > 0) parts.push(totalRecords.report + ' report');
             if (parts.length === 0) {
-                showToast('No data sheets found in file. Expected sheets named Fuel, Loads, or Report.', 'error');
+                showToast('No data sheets found. Expected sheets named Fuel, Loads, or Report.', 'error');
             } else {
-                showToast(msg + parts.join(', ') + ' records', 'success');
+                showToast('Loaded from ' + file.name + ': ' + parts.join(', ') + ' records', 'success');
             }
         } catch (err) {
             console.error('Parse error:', err);
@@ -736,6 +736,7 @@ function parseExcelFile(file, type) {
     reader.readAsArrayBuffer(file);
 }
 
+// ===== Fuel Parser =====
 function parseFuelWorkbook(workbook, fileName, sheetNameOverride) {
     var sheetName = sheetNameOverride || workbook.SheetNames.find(function(n) {
         return n.toLowerCase().indexOf('fuel') !== -1;
@@ -743,14 +744,17 @@ function parseFuelWorkbook(workbook, fileName, sheetNameOverride) {
     var sheet = workbook.Sheets[sheetName];
     var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-    // Find header row - Fuel data is in A1:Q50
+    // Find header row by looking for known fuel column names
     var headerIdx = -1;
     for (var i = 0; i < Math.min(rows.length, 15); i++) {
         var row = rows[i];
-        if (row && row.some(function(c) {
-            return String(c).toLowerCase().indexOf('card') !== -1 ||
-                   String(c).toLowerCase().indexOf('tran date') !== -1;
-        })) {
+        if (!row) continue;
+        var rowStr = row.map(function(c) { return String(c).toLowerCase(); }).join('|');
+        if (rowStr.indexOf('card') !== -1 && rowStr.indexOf('date') !== -1) {
+            headerIdx = i;
+            break;
+        }
+        if (rowStr.indexOf('tran date') !== -1) {
             headerIdx = i;
             break;
         }
@@ -761,58 +765,63 @@ function parseFuelWorkbook(workbook, fileName, sheetNameOverride) {
         return 0;
     }
 
-    // Map columns
     var headers = rows[headerIdx].map(function(h) { return String(h).toLowerCase().trim(); });
-    var colMap = {
-        cardNum: findCol(headers, ['card']),
-        tranDate: findCol(headers, ['tran date', 'date']),
-        tranTime: findCol(headers, ['time', 'trans. time']),
-        invoice: findCol(headers, ['invoice']),
-        unit: findCol(headers, ['unit']),
-        driverName: findCol(headers, ['driver']),
-        odometer: findCol(headers, ['odometer', 'odo']),
-        locationName: findCol(headers, ['location']),
-        city: findCol(headers, ['city']),
-        state: findCol(headers, ['state', 'prov']),
-        fees: findCol(headers, ['fees', 'fee']),
-        item: findCol(headers, ['item']),
-        unitPrice: findCol(headers, ['unit price', 'price']),
-        qty: findCol(headers, ['qty', 'quantity']),
-        amt: findCol(headers, ['amt', 'amount']),
-        db: findCol(headers, ['db']),
-        currency: findCol(headers, ['currency'])
-    };
+
+    // Build column map using exact position-based mapping
+    // Expected order: Card#, TranDate, Trans.Time, Invoice, Unit, DriverName, Odometer, LocationName, City, State, Fees, Item, UnitPrice, Qty, Amt, DB, Currency
+    var colMap = {};
+    for (var c = 0; c < headers.length; c++) {
+        var h = headers[c];
+        if (h.indexOf('card') !== -1 && !colMap.cardNum) colMap.cardNum = c;
+        else if ((h.indexOf('tran date') !== -1 || h === 'date') && !colMap.tranDate) colMap.tranDate = c;
+        else if ((h.indexOf('time') !== -1) && h.indexOf('date') === -1 && !colMap.tranTime) colMap.tranTime = c;
+        else if (h.indexOf('invoice') !== -1 && !colMap.invoice) colMap.invoice = c;
+        else if (h === 'unit' && !colMap.unit) colMap.unit = c;
+        else if (h.indexOf('driver') !== -1 && !colMap.driverName) colMap.driverName = c;
+        else if ((h.indexOf('odometer') !== -1 || h.indexOf('odo') !== -1) && !colMap.odometer) colMap.odometer = c;
+        else if (h.indexOf('location') !== -1 && !colMap.locationName) colMap.locationName = c;
+        else if (h.indexOf('city') !== -1 && !colMap.city) colMap.city = c;
+        else if ((h.indexOf('state') !== -1 || h.indexOf('prov') !== -1) && !colMap.state) colMap.state = c;
+        else if ((h.indexOf('fee') !== -1) && !colMap.fees) colMap.fees = c;
+        else if (h === 'item' && !colMap.item) colMap.item = c;
+        else if (h.indexOf('unit price') !== -1 || h.indexOf('price') !== -1 && !colMap.unitPrice) colMap.unitPrice = c;
+        else if ((h.indexOf('qty') !== -1 || h.indexOf('quantity') !== -1) && !colMap.qty) colMap.qty = c;
+        else if ((h.indexOf('amt') !== -1 || h.indexOf('amount') !== -1) && !colMap.amt) colMap.amt = c;
+        else if (h === 'db' && !colMap.db) colMap.db = c;
+        else if (h.indexOf('currency') !== -1 && !colMap.currency) colMap.currency = c;
+    }
 
     var newData = [];
-    // Parse up to row 50 (A1:Q50 range) but allow more if data exists
-    var maxRow = Math.min(rows.length, 50);
-    for (var r = headerIdx + 1; r < maxRow; r++) {
+    for (var r = headerIdx + 1; r < rows.length; r++) {
         var row = rows[r];
-        if (!row || (!row[colMap.cardNum] && !row[colMap.tranDate])) continue;
-        // Skip if the row looks empty
-        var hasData = false;
-        for (var c = 0; c < Math.min(row.length, 17); c++) {
-            if (row[c] !== '' && row[c] !== null && row[c] !== undefined) { hasData = true; break; }
-        }
-        if (!hasData) continue;
+        if (!row) continue;
+
+        // Check if row has actual data (not empty)
+        var dateVal = colMap.tranDate !== undefined ? row[colMap.tranDate] : null;
+        var cardVal = colMap.cardNum !== undefined ? row[colMap.cardNum] : null;
+        if (!dateVal && !cardVal) continue;
+
+        // Skip rows where the "date" cell looks like a header or is empty text
+        if (typeof dateVal === 'string' && dateVal.toLowerCase().indexOf('date') !== -1) continue;
+
         newData.push({
-            cardNum: row[colMap.cardNum] || '',
-            tranDate: excelDateToStr(row[colMap.tranDate]),
-            tranTime: formatExcelTime(row[colMap.tranTime]),
-            invoice: row[colMap.invoice] || '',
-            unit: row[colMap.unit] || '',
-            driverName: row[colMap.driverName] || '',
-            odometer: row[colMap.odometer] || 0,
-            locationName: row[colMap.locationName] || '',
-            city: row[colMap.city] || '',
-            state: row[colMap.state] || '',
-            fees: row[colMap.fees] || 0,
-            item: row[colMap.item] || '',
-            unitPrice: row[colMap.unitPrice] || 0,
-            qty: row[colMap.qty] || 0,
-            amt: row[colMap.amt] || 0,
-            db: row[colMap.db] || '',
-            currency: row[colMap.currency] || ''
+            cardNum: safeVal(row, colMap.cardNum),
+            tranDate: excelDateToStr(safeVal(row, colMap.tranDate)),
+            tranTime: formatExcelTime(safeVal(row, colMap.tranTime)),
+            invoice: safeVal(row, colMap.invoice),
+            unit: safeVal(row, colMap.unit),
+            driverName: safeVal(row, colMap.driverName),
+            odometer: safeVal(row, colMap.odometer) || 0,
+            locationName: safeVal(row, colMap.locationName),
+            city: safeVal(row, colMap.city),
+            state: safeVal(row, colMap.state),
+            fees: safeVal(row, colMap.fees) || 0,
+            item: safeVal(row, colMap.item),
+            unitPrice: safeVal(row, colMap.unitPrice) || 0,
+            qty: safeVal(row, colMap.qty) || 0,
+            amt: safeVal(row, colMap.amt) || 0,
+            db: safeVal(row, colMap.db),
+            currency: safeVal(row, colMap.currency)
         });
     }
 
@@ -827,6 +836,7 @@ function parseFuelWorkbook(workbook, fileName, sheetNameOverride) {
     return newData.length;
 }
 
+// ===== Loads Parser =====
 function parseLoadsWorkbook(workbook, fileName, sheetNameOverride) {
     var sheetName = sheetNameOverride || workbook.SheetNames.find(function(n) {
         return n.toLowerCase().indexOf('load') !== -1;
@@ -834,18 +844,14 @@ function parseLoadsWorkbook(workbook, fileName, sheetNameOverride) {
     var sheet = workbook.Sheets[sheetName];
     var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-    // Find header row - Loads data useful range is D1:J49
+    // Find header row
     var headerIdx = -1;
     for (var i = 0; i < Math.min(rows.length, 15); i++) {
         var row = rows[i];
-        if (row && row.some(function(c) {
-            var s = String(c).toLowerCase();
-            return s.indexOf('invoiceid') !== -1 ||
-                   s.indexOf('load #') !== -1 ||
-                   s.indexOf('load') !== -1 ||
-                   s.indexOf('pick date') !== -1 ||
-                   s.indexOf('broker') !== -1;
-        })) {
+        if (!row) continue;
+        var rowStr = row.map(function(c) { return String(c).toLowerCase(); }).join('|');
+        if (rowStr.indexOf('pick date') !== -1 || rowStr.indexOf('pickup') !== -1 ||
+            rowStr.indexOf('invoiceid') !== -1 || rowStr.indexOf('load #') !== -1) {
             headerIdx = i;
             break;
         }
@@ -857,43 +863,52 @@ function parseLoadsWorkbook(workbook, fileName, sheetNameOverride) {
     }
 
     var headers = rows[headerIdx].map(function(h) { return String(h).toLowerCase().trim(); });
-    var colMap = {
-        invoiceId: findCol(headers, ['invoiceid', 'invoice id', 'invoice']),
-        loadNum: findCol(headers, ['load #', 'load']),
-        broker: findCol(headers, ['broker']),
-        pickDate: findCol(headers, ['pick date', 'pickup date']),
-        pickup: findCol(headers, ['pickup']),
-        dropDate: findCol(headers, ['drop date', 'dropoff date']),
-        dropoff: findCol(headers, ['dropoff', 'drop off']),
-        driver: findCol(headers, ['driver']),
-        truck: findCol(headers, ['truck', 'truckname']),
-        trailer: findCol(headers, ['trailer']),
-        shippingId: findCol(headers, ['shipping', 'shipping id']),
-        puDatetime: findCol(headers, ['pickup datetime', 'pu datetime', 'pu date']),
-        doDatetime: findCol(headers, ['delivery datetime', 'do datetime', 'do date']),
-        notes: findCol(headers, ['notes', 'note'])
-    };
+
+    // Build column map
+    var colMap = {};
+    for (var c = 0; c < headers.length; c++) {
+        var h = headers[c];
+        if ((h.indexOf('invoiceid') !== -1 || h === 'invoice id') && !colMap.invoiceId) colMap.invoiceId = c;
+        else if ((h.indexOf('load #') !== -1 || h === 'load') && !colMap.loadNum) colMap.loadNum = c;
+        else if (h.indexOf('broker') !== -1 && !colMap.broker) colMap.broker = c;
+        else if (h.indexOf('pick date') !== -1 && !colMap.pickDate) colMap.pickDate = c;
+        else if (h === 'pickup' && !colMap.pickup) colMap.pickup = c;
+        else if (h.indexOf('drop date') !== -1 && !colMap.dropDate) colMap.dropDate = c;
+        else if ((h === 'dropoff' || h === 'drop off') && !colMap.dropoff) colMap.dropoff = c;
+        else if (h.indexOf('driver') !== -1 && !colMap.driver) colMap.driver = c;
+        else if ((h.indexOf('truck') !== -1) && !colMap.truck) colMap.truck = c;
+        else if (h.indexOf('trailer') !== -1 && !colMap.trailer) colMap.trailer = c;
+        else if (h.indexOf('shipping') !== -1 && !colMap.shippingId) colMap.shippingId = c;
+        else if (h.indexOf('pickup datetime') !== -1 || h.indexOf('pu datetime') !== -1 || h.indexOf('pu date') !== -1) { if (!colMap.puDatetime) colMap.puDatetime = c; }
+        else if (h.indexOf('delivery datetime') !== -1 || h.indexOf('do datetime') !== -1 || h.indexOf('do date') !== -1) { if (!colMap.doDatetime) colMap.doDatetime = c; }
+        else if ((h === 'notes' || h === 'note') && !colMap.notes) colMap.notes = c;
+    }
 
     var newData = [];
-    var maxRow = Math.min(rows.length, 49);
-    for (var r = headerIdx + 1; r < maxRow; r++) {
+    for (var r = headerIdx + 1; r < rows.length; r++) {
         var row = rows[r];
-        if (!row || (!row[colMap.invoiceId] && !row[colMap.loadNum] && !row[colMap.pickDate])) continue;
+        if (!row) continue;
+
+        var pickVal = safeVal(row, colMap.pickDate);
+        var invoiceVal = safeVal(row, colMap.invoiceId);
+        var loadVal = safeVal(row, colMap.loadNum);
+        if (!pickVal && !invoiceVal && !loadVal) continue;
+
         newData.push({
-            invoiceId: row[colMap.invoiceId] || '',
-            loadNum: row[colMap.loadNum] || '',
-            broker: row[colMap.broker] || '',
-            pickDate: excelDateToStr(row[colMap.pickDate]),
-            pickup: row[colMap.pickup] || '',
-            dropDate: excelDateToStr(row[colMap.dropDate]),
-            dropoff: row[colMap.dropoff] || '',
-            driver: row[colMap.driver] || '',
-            truck: row[colMap.truck] || '',
-            trailer: row[colMap.trailer] || '',
-            shippingId: row[colMap.shippingId] || '',
-            puDatetime: row[colMap.puDatetime] || '',
-            doDatetime: row[colMap.doDatetime] || '',
-            notes: row[colMap.notes] || ''
+            invoiceId: invoiceVal || '',
+            loadNum: loadVal || '',
+            broker: safeVal(row, colMap.broker) || '',
+            pickDate: excelDateToStr(pickVal),
+            pickup: safeVal(row, colMap.pickup) || '',
+            dropDate: excelDateToStr(safeVal(row, colMap.dropDate)),
+            dropoff: safeVal(row, colMap.dropoff) || '',
+            driver: safeVal(row, colMap.driver) || '',
+            truck: safeVal(row, colMap.truck) || '',
+            trailer: safeVal(row, colMap.trailer) || '',
+            shippingId: safeVal(row, colMap.shippingId) || '',
+            puDatetime: safeVal(row, colMap.puDatetime) || '',
+            doDatetime: safeVal(row, colMap.doDatetime) || '',
+            notes: safeVal(row, colMap.notes) || ''
         });
     }
 
@@ -908,6 +923,7 @@ function parseLoadsWorkbook(workbook, fileName, sheetNameOverride) {
     return newData.length;
 }
 
+// ===== Report Parser =====
 function parseReportWorkbook(workbook, fileName, sheetNameOverride) {
     var sheetName = sheetNameOverride || workbook.SheetNames.find(function(n) {
         return n.toLowerCase().indexOf('report') !== -1;
@@ -917,6 +933,8 @@ function parseReportWorkbook(workbook, fileName, sheetNameOverride) {
 
     var newData = [];
     var headerIdx = -1;
+    var driverNameCol = -1;
+    var truckCol = -1;
     var dateCol = -1;
     var startOdoCol = -1;
     var endOdoCol = -1;
@@ -924,22 +942,17 @@ function parseReportWorkbook(workbook, fileName, sheetNameOverride) {
     var missingCol = -1;
     var notesCol = -1;
 
-    // Report miles data is in R9:U50 (column R = index 17, row 9 = index 8)
-    // First try to find headers in column R area (index 17+) around row 8-9
+    // Search all rows for the miles data header
     for (var i = 0; i < Math.min(rows.length, 15); i++) {
         var row = rows[i];
         if (!row) continue;
         for (var j = 0; j < row.length; j++) {
             var cellStr = String(row[j]).toLowerCase().trim();
-            if (cellStr === 'date' || cellStr === 'dates') {
-                // Prefer date columns in the R+ range (index 17+) for report
-                if (dateCol === -1 || j >= 17) {
-                    dateCol = j;
-                    headerIdx = i;
-                }
-            }
-            if (cellStr.indexOf('start odo') !== -1 || cellStr.indexOf('start_odo') !== -1 || cellStr === 'start odo') startOdoCol = j;
-            if (cellStr.indexOf('end odo') !== -1 || cellStr.indexOf('end_odo') !== -1 || cellStr === 'end odo') endOdoCol = j;
+            if ((cellStr.indexOf('driver') !== -1) && driverNameCol === -1) driverNameCol = j;
+            if ((cellStr.indexOf('truck') !== -1) && truckCol === -1) truckCol = j;
+            if ((cellStr === 'date' || cellStr === 'dates') && dateCol === -1) { dateCol = j; headerIdx = i; }
+            if (cellStr.indexOf('start odo') !== -1 || cellStr.indexOf('start_odo') !== -1) startOdoCol = j;
+            if (cellStr.indexOf('end odo') !== -1 || cellStr.indexOf('end_odo') !== -1) endOdoCol = j;
             if (cellStr.indexOf('total mile') !== -1 || cellStr === 'total miles') totalMileCol = j;
             if (cellStr.indexOf('missing') !== -1) missingCol = j;
             if (cellStr === 'details' || cellStr === 'notes') notesCol = j;
@@ -947,26 +960,48 @@ function parseReportWorkbook(workbook, fileName, sheetNameOverride) {
         if (dateCol !== -1 && startOdoCol !== -1) break;
     }
 
-    // If no explicit headers found, try R9:U50 layout (col R=17, starting row 8)
+    // If headers found at a low column index, also check the R+ range (index 17+) for a second "Date" column
+    if (dateCol !== -1 && dateCol < 17) {
+        for (var i = 0; i < Math.min(rows.length, 15); i++) {
+            var row = rows[i];
+            if (!row) continue;
+            for (var j = 17; j < row.length; j++) {
+                var cellStr = String(row[j]).toLowerCase().trim();
+                if (cellStr === 'date' || cellStr === 'dates') {
+                    dateCol = j;
+                    headerIdx = i;
+                    driverNameCol = -1;
+                    truckCol = -1;
+                    startOdoCol = -1;
+                    endOdoCol = -1;
+                    totalMileCol = -1;
+                    missingCol = -1;
+                    // Re-scan this row from j-2 (driver/truck may be before date) through end
+                    for (var k = Math.max(0, j - 5); k < row.length; k++) {
+                        var cs = String(row[k]).toLowerCase().trim();
+                        if (cs.indexOf('driver') !== -1 && driverNameCol === -1) driverNameCol = k;
+                        if (cs.indexOf('truck') !== -1 && truckCol === -1) truckCol = k;
+                        if (cs.indexOf('start odo') !== -1) startOdoCol = k;
+                        if (cs.indexOf('end odo') !== -1) endOdoCol = k;
+                        if (cs.indexOf('total mile') !== -1) totalMileCol = k;
+                        if (cs.indexOf('missing') !== -1) missingCol = k;
+                    }
+                    break;
+                }
+            }
+            if (dateCol >= 17) break;
+        }
+    }
+
+    // Fallback: check R9:U50 layout without headers
     if (dateCol === -1) {
-        // Check if column R (index 17) has date-like data starting around row 8
         for (var i = 7; i < Math.min(rows.length, 12); i++) {
             var row = rows[i];
             if (!row || !row[17]) continue;
-            var cellStr = String(row[17]).toLowerCase().trim();
-            if (cellStr === 'date' || cellStr === 'dates') {
-                dateCol = 17;
-                headerIdx = i;
-                startOdoCol = 18; // S
-                endOdoCol = 19;   // T
-                totalMileCol = 20; // U
-                break;
-            }
-            // Check if it's actual date data (no header row)
             var testDate = excelDateToStr(row[17]);
             if (testDate && /^\d{4}-\d{2}-\d{2}$/.test(testDate)) {
                 dateCol = 17;
-                headerIdx = i - 1; // data starts here
+                headerIdx = i - 1;
                 startOdoCol = 18;
                 endOdoCol = 19;
                 totalMileCol = 20;
@@ -976,34 +1011,33 @@ function parseReportWorkbook(workbook, fileName, sheetNameOverride) {
     }
 
     if (dateCol === -1) {
-        if (!sheetNameOverride) showToast('Could not find date/odometer columns in report file. Looking for: Date, Start Odo, End Odo, Total Miles', 'error');
+        if (!sheetNameOverride) showToast('Could not find date/odometer columns in report file', 'error');
         return 0;
     }
 
-    // Defaults for columns not found
     if (startOdoCol === -1) startOdoCol = dateCol + 1;
     if (endOdoCol === -1) endOdoCol = dateCol + 2;
     if (totalMileCol === -1) totalMileCol = dateCol + 3;
     if (missingCol === -1) missingCol = dateCol + 4;
 
-    var maxRow = Math.min(rows.length, 50);
-    for (var r = headerIdx + 1; r < maxRow; r++) {
+    for (var r = headerIdx + 1; r < rows.length; r++) {
         var row = rows[r];
         if (!row) continue;
         var dateVal = row[dateCol];
         if (!dateVal) continue;
         var dateStr = excelDateToStr(dateVal);
-        if (!dateStr) continue;
+        if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
 
-        var record = {
+        newData.push({
+            driverName: driverNameCol !== -1 && driverNameCol < row.length ? (row[driverNameCol] || '') : '',
+            truck: truckCol !== -1 && truckCol < row.length ? (row[truckCol] || '') : '',
             date: dateStr,
             startOdo: row[startOdoCol] || 0,
             endOdo: row[endOdoCol] || 0,
             totalMiles: row[totalMileCol] || 0,
             missingMiles: missingCol < row.length ? (row[missingCol] || 0) : 0,
             notes: notesCol !== -1 && notesCol < row.length ? (row[notesCol] || '') : ''
-        };
-        newData.push(record);
+        });
     }
 
     reportData = reportData.concat(newData);
@@ -1033,19 +1067,19 @@ function setupExport() {
 
     document.getElementById('exportLoadsCSV').addEventListener('click', function() {
         exportCSV(filteredLoads, [
-            'invoiceId', 'loadNum', 'broker', 'pickDate', 'pickup', 'dropDate',
-            'dropoff', 'driver', 'truck', 'trailer', 'shippingId', 'puDatetime', 'doDatetime', 'notes'
+            'invoiceId', 'loadNum', 'broker', 'pickDate', 'pickup', 'dropDate', 'dropoff',
+            'driver', 'truck', 'trailer', 'shippingId', 'puDatetime', 'doDatetime', 'notes'
         ], [
-            'Invoice ID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date',
-            'Dropoff', 'Driver', 'Truck', 'Trailer', 'Shipping ID', 'PU Datetime', 'DO Datetime', 'Notes'
+            'InvoiceID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date', 'Dropoff',
+            'Driver', 'TruckName', 'Trailer', 'Shipping ID', 'Pickup Datetime', 'Delivery Datetime', 'Notes'
         ], 'loads_export.csv');
     });
 
     document.getElementById('exportReportCSV').addEventListener('click', function() {
         exportCSV(filteredReport, [
-            'date', 'startOdo', 'endOdo', 'totalMiles', 'missingMiles', 'notes'
+            'driverName', 'truck', 'date', 'startOdo', 'endOdo', 'totalMiles', 'missingMiles', 'notes'
         ], [
-            'Date', 'Start Odometer', 'End Odometer', 'Total Miles', 'Missing Miles', 'Notes'
+            'Driver Name', 'Truck', 'Date', 'Start Odometer', 'End Odometer', 'Total Miles', 'Missing Miles', 'Notes'
         ], 'report_export.csv');
     });
 }
@@ -1104,9 +1138,9 @@ function loadSampleData() {
         {cardNum:959,tranDate:"2025-11-05",tranTime:"07:42",invoice:38944,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"PETRO GREENSBURG",city:"GREENSBURG",state:"IN",fees:0,item:"ULSD",unitPrice:3.685,qty:161.65,amt:595.68,db:"N",currency:"USD/Gallons"},
         {cardNum:959,tranDate:"2025-11-05",tranTime:"07:42",invoice:38944,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"PETRO GREENSBURG",city:"GREENSBURG",state:"IN",fees:0,item:"DEFD",unitPrice:4.399,qty:11.29,amt:49.66,db:"N",currency:"USD/Gallons"},
         {cardNum:959,tranDate:"2025-11-07",tranTime:"07:00",invoice:57250,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"PETRO RACINE",city:"STURTEVANT",state:"WI",fees:0,item:"ULSD",unitPrice:3.277,qty:164.76,amt:539.92,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-07",tranTime:"07:00",invoice:57250,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"PETRO RACINE",city:"STURTEVANT",state:"WI",fees:0,item:"DEFD",unitPrice:4.399,qty:10.75,amt:47.30,db:"N",currency:"USD/Gallons"},
         {cardNum:959,tranDate:"2025-11-08",tranTime:"19:17",invoice:47082,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"PETRO REMINGTON",city:"REMINGTON",state:"IN",fees:0,item:"ULSD",unitPrice:3.576,qty:174.86,amt:625.30,db:"N",currency:"USD/Gallons"},
-        {cardNum:959,tranDate:"2025-11-12",tranTime:"05:02",invoice:6237,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"TA CHICAGO NORTH",city:"RUSSELL",state:"IL",fees:0,item:"ULSD",unitPrice:3.925,qty:170.72,amt:670.07,db:"N",currency:"USD/Gallons"}
+        {cardNum:959,tranDate:"2025-11-12",tranTime:"05:02",invoice:6237,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"TA CHICAGO NORTH",city:"RUSSELL",state:"IL",fees:0,item:"ULSD",unitPrice:3.925,qty:170.72,amt:670.07,db:"N",currency:"USD/Gallons"},
+        {cardNum:959,tranDate:"2025-11-13",tranTime:"02:22",invoice:52717,unit:"MPL5046",driverName:"Driver A",odometer:0,locationName:"PETRO REMINGTON",city:"REMINGTON",state:"IN",fees:0,item:"ULSD",unitPrice:3.573,qty:167.15,amt:597.22,db:"N",currency:"USD/Gallons"}
     ];
 
     var sampleLoads = [
@@ -1118,16 +1152,16 @@ function loadSampleData() {
     ];
 
     var sampleReport = [
-        {date:"2025-11-01",startOdo:57685,endOdo:57858,totalMiles:173,missingMiles:0,notes:""},
-        {date:"2025-11-02",startOdo:57858,endOdo:57858,totalMiles:0,missingMiles:0,notes:""},
-        {date:"2025-11-03",startOdo:57858,endOdo:57858,totalMiles:0,missingMiles:428,notes:""},
-        {date:"2025-11-03",startOdo:58286,endOdo:58924,totalMiles:638,missingMiles:0,notes:""},
-        {date:"2025-11-04",startOdo:58924,endOdo:59067,totalMiles:143,missingMiles:136,notes:""},
-        {date:"2025-11-04",startOdo:59203,endOdo:59587,totalMiles:384,missingMiles:0,notes:""},
-        {date:"2025-11-05",startOdo:59587,endOdo:60274,totalMiles:687,missingMiles:0,notes:""},
-        {date:"2025-11-06",startOdo:60274,endOdo:60274,totalMiles:0,missingMiles:15,notes:""},
-        {date:"2025-11-06",startOdo:60289,endOdo:60981,totalMiles:692,missingMiles:0,notes:""},
-        {date:"2025-11-07",startOdo:60981,endOdo:61048,totalMiles:67,missingMiles:134,notes:""}
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-01",startOdo:57685,endOdo:57858,totalMiles:173,missingMiles:0,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-02",startOdo:57858,endOdo:57858,totalMiles:0,missingMiles:0,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-03",startOdo:57858,endOdo:57858,totalMiles:0,missingMiles:428,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-03",startOdo:58286,endOdo:58924,totalMiles:638,missingMiles:0,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-04",startOdo:58924,endOdo:59067,totalMiles:143,missingMiles:136,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-04",startOdo:59203,endOdo:59587,totalMiles:384,missingMiles:0,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-05",startOdo:59587,endOdo:60274,totalMiles:687,missingMiles:0,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-06",startOdo:60274,endOdo:60274,totalMiles:0,missingMiles:15,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-06",startOdo:60289,endOdo:60981,totalMiles:692,missingMiles:0,notes:""},
+        {driverName:"Driver A",truck:"MPL5046",date:"2025-11-07",startOdo:60981,endOdo:61048,totalMiles:67,missingMiles:134,notes:""}
     ];
 
     fuelData = sampleFuel;
@@ -1145,49 +1179,57 @@ function loadSampleData() {
 }
 
 // ===== Utility Functions =====
-function findCol(headers, keywords) {
-    for (var i = 0; i < headers.length; i++) {
-        for (var k = 0; k < keywords.length; k++) {
-            if (headers[i].indexOf(keywords[k]) !== -1) return i;
-        }
-    }
-    return 0;
+
+// Safe value getter - returns empty string if column index is undefined
+function safeVal(row, colIdx) {
+    if (colIdx === undefined || colIdx === null) return '';
+    if (colIdx >= row.length) return '';
+    return row[colIdx];
 }
 
 function excelDateToStr(val) {
-    if (!val) return '';
+    if (!val && val !== 0) return '';
     if (val instanceof Date) {
-        var y = val.getFullYear();
-        var m = String(val.getMonth() + 1).padStart(2, '0');
-        var d = String(val.getDate()).padStart(2, '0');
+        // Use UTC methods to avoid timezone shifting
+        var y = val.getUTCFullYear();
+        var m = String(val.getUTCMonth() + 1).padStart(2, '0');
+        var d = String(val.getUTCDate()).padStart(2, '0');
         return y + '-' + m + '-' + d;
     }
     if (typeof val === 'string') {
+        // Already YYYY-MM-DD
         if (/^\d{4}-\d{2}-\d{2}/.test(val)) return val.substring(0, 10);
+        // Try to parse other date string formats
         var parsed = new Date(val);
         if (!isNaN(parsed.getTime())) {
-            return parsed.getFullYear() + '-' + String(parsed.getMonth()+1).padStart(2,'0') + '-' + String(parsed.getDate()).padStart(2,'0');
+            return parsed.getUTCFullYear() + '-' + String(parsed.getUTCMonth()+1).padStart(2,'0') + '-' + String(parsed.getUTCDate()).padStart(2,'0');
         }
     }
-    if (typeof val === 'number') {
+    if (typeof val === 'number' && val > 1000) {
+        // Excel serial date (only if it looks like a date serial, not a regular number)
         var date = new Date((val - 25569) * 86400000);
-        return date.getFullYear() + '-' + String(date.getMonth()+1).padStart(2,'0') + '-' + String(date.getDate()).padStart(2,'0');
+        return date.getUTCFullYear() + '-' + String(date.getUTCMonth()+1).padStart(2,'0') + '-' + String(date.getUTCDate()).padStart(2,'0');
     }
-    return String(val);
+    return '';
 }
 
 function formatExcelTime(val) {
-    if (!val) return '';
+    if (!val && val !== 0) return '';
     if (val instanceof Date) {
-        return String(val.getHours()).padStart(2, '0') + ':' + String(val.getMinutes()).padStart(2, '0');
+        return String(val.getUTCHours()).padStart(2, '0') + ':' + String(val.getUTCMinutes()).padStart(2, '0');
     }
-    if (typeof val === 'number') {
+    if (typeof val === 'number' && val < 1) {
+        // Excel decimal time (0.0 to 0.999)
         var totalMinutes = Math.round(val * 24 * 60);
         var hours = Math.floor(totalMinutes / 60);
         var minutes = totalMinutes % 60;
         return String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
     }
-    return String(val);
+    if (typeof val === 'string') {
+        // Already a time string like "08:08" or "8:08 AM"
+        return val;
+    }
+    return '';
 }
 
 function formatDate(dateStr) {
