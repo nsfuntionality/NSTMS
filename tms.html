@@ -6,6 +6,8 @@
     <title>Carrier TMS - Dashboard</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
     <!-- Top Navigation -->
@@ -95,6 +97,7 @@
                         <button class="btn btn-sm btn-primary audit-hide" id="addFuelBtn">+ Add Record</button>
                         <button class="btn btn-sm btn-success audit-hide" id="saveFuelExcel">Save to Excel</button>
                         <button class="btn btn-sm btn-outline" id="exportFuelCSV">Export CSV</button>
+                        <button class="btn btn-sm btn-pdf" id="exportFuelPDF">Export PDF</button>
                     </div>
                 </div>
                 <div class="table-wrapper">
@@ -142,6 +145,7 @@
                         <button class="btn btn-sm btn-primary audit-hide" id="addLoadBtn">+ Add Record</button>
                         <button class="btn btn-sm btn-success audit-hide" id="saveLoadsExcel">Save to Excel</button>
                         <button class="btn btn-sm btn-outline" id="exportLoadsCSV">Export CSV</button>
+                        <button class="btn btn-sm btn-pdf" id="exportLoadsPDF">Export PDF</button>
                     </div>
                 </div>
                 <div class="table-wrapper">
@@ -177,6 +181,7 @@
                     <div class="content-actions">
                         <button class="btn btn-sm btn-success audit-hide" id="saveReportExcel">Save to Excel</button>
                         <button class="btn btn-sm btn-outline" id="exportReportCSV">Export CSV</button>
+                        <button class="btn btn-sm btn-pdf" id="exportReportPDF">Export PDF</button>
                     </div>
                 </div>
                 <!-- Report Summary Cards -->

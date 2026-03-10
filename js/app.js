@@ -1344,6 +1344,11 @@ function setupExport() {
     document.getElementById('saveFuelExcel').addEventListener('click', function() { saveToExcel('fuel'); });
     document.getElementById('saveLoadsExcel').addEventListener('click', function() { saveToExcel('loads'); });
     document.getElementById('saveReportExcel').addEventListener('click', function() { saveToExcel('report'); });
+
+    // Export PDF buttons
+    document.getElementById('exportFuelPDF').addEventListener('click', function() { exportPDF('fuel'); });
+    document.getElementById('exportLoadsPDF').addEventListener('click', function() { exportPDF('loads'); });
+    document.getElementById('exportReportPDF').addEventListener('click', function() { exportPDF('report'); });
 }
 
 function exportCSV(data, fields, headers, filename) {
@@ -1370,6 +1375,264 @@ function exportCSV(data, fields, headers, filename) {
     a.click();
     URL.revokeObjectURL(url);
     showToast('Exported ' + data.length + ' records to ' + filename, 'success');
+}
+
+// ===== Export PDF =====
+var COMPANY_INFO = {
+    name: 'Khalsa Logistics LLC',
+    address: '9875 S 76th Street',
+    cityState: 'Franklin, WI 53132',
+    email: 'Khalsalogisticsllc@gmail.com',
+    phone: '800-811-7308'
+};
+
+function addPDFHeader(doc, title) {
+    var pageWidth = doc.internal.pageSize.getWidth();
+
+    // Company name
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(COMPANY_INFO.name, pageWidth / 2, 18, { align: 'center' });
+
+    // Address
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(COMPANY_INFO.address, pageWidth / 2, 24, { align: 'center' });
+    doc.text(COMPANY_INFO.cityState, pageWidth / 2, 29, { align: 'center' });
+
+    // Contact
+    doc.text(COMPANY_INFO.email + '  |  ' + COMPANY_INFO.phone, pageWidth / 2, 34, { align: 'center' });
+
+    // Divider line
+    doc.setDrawColor(26, 86, 219);
+    doc.setLineWidth(0.5);
+    doc.line(14, 38, pageWidth - 14, 38);
+
+    // Report title
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(26, 86, 219);
+    doc.text(title, pageWidth / 2, 45, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
+
+    // Date
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Generated: ' + new Date().toLocaleDateString(), pageWidth - 14, 45, { align: 'right' });
+
+    return 50; // Y position after header
+}
+
+function exportPDF(type) {
+    var jsPDF = window.jspdf.jsPDF;
+
+    if (type === 'fuel') {
+        if (!filteredFuel.length) { showToast('No fuel data to export', 'error'); return; }
+        var doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+        var startY = addPDFHeader(doc, 'Fuel Transaction Report');
+
+        var headers = ['Card #', 'Date', 'Time', 'Invoice', 'Unit', 'Driver', 'Odometer', 'Location', 'City', 'State', 'Fees', 'Item', 'Price', 'Qty', 'Amt', 'DB', 'Currency'];
+        var rows = filteredFuel.map(function(r) {
+            return [r.cardNum, formatDate(r.tranDate), r.tranTime, r.invoice, r.unit, r.driverName,
+                r.odometer, r.locationName, r.city, r.state, num(r.fees), r.item,
+                '$' + num(r.unitPrice), num(r.qty), '$' + num(r.amt), r.db, r.currency];
+        });
+
+        // Totals row
+        var totalQty = 0, totalAmt = 0;
+        filteredFuel.forEach(function(r) {
+            totalQty += (parseFloat(r.qty) || 0);
+            totalAmt += (parseFloat(r.amt) || 0);
+        });
+        rows.push(['', '', '', '', '', '', '', '', '', '', '', '', 'TOTAL:', totalQty.toFixed(2), '$' + totalAmt.toFixed(2), '', '']);
+
+        doc.autoTable({
+            head: [headers],
+            body: rows,
+            startY: startY,
+            styles: { fontSize: 6.5, cellPadding: 1.5 },
+            headStyles: { fillColor: [26, 86, 219], fontSize: 6.5, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 247, 250] },
+            didParseCell: function(data) {
+                if (data.row.index === rows.length - 1 && data.section === 'body') {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.fillColor = [219, 234, 254];
+                }
+            },
+            margin: { left: 8, right: 8 }
+        });
+
+        doc.save('Fuel_Report.pdf');
+        showToast('Fuel PDF exported', 'success');
+
+    } else if (type === 'loads') {
+        if (!filteredLoads.length) { showToast('No loads data to export', 'error'); return; }
+        var doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+        var startY = addPDFHeader(doc, 'Load Records Report');
+
+        var headers = ['InvoiceID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date', 'Dropoff', 'Driver', 'Truck', 'Trailer', 'Shipping ID'];
+        var rows = filteredLoads.map(function(r) {
+            return [r.invoiceId, r.loadNum, r.broker, formatDate(r.pickDate), r.pickup,
+                formatDate(r.dropDate), r.dropoff, r.driver, r.truck, r.trailer, r.shippingId];
+        });
+
+        doc.autoTable({
+            head: [headers],
+            body: rows,
+            startY: startY,
+            styles: { fontSize: 7, cellPadding: 1.5 },
+            headStyles: { fillColor: [26, 86, 219], fontSize: 7, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 247, 250] },
+            margin: { left: 8, right: 8 }
+        });
+
+        doc.save('Loads_Report.pdf');
+        showToast('Loads PDF exported', 'success');
+
+    } else if (type === 'report') {
+        var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+        var startY = addPDFHeader(doc, 'Driver Earning Report');
+        var pageWidth = doc.internal.pageSize.getWidth();
+
+        // Summary section
+        var driverName = document.getElementById('rptDriver').textContent;
+        var truck = document.getElementById('rptTruck').textContent;
+        var period = document.getElementById('rptPeriod').textContent;
+        var totalMiles = document.getElementById('rptTotalMiles').textContent;
+        var fuelCost = document.getElementById('rptFuelCost').textContent;
+        var totalLoads = document.getElementById('rptTotalLoads').textContent;
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Driver: ', 14, startY + 2);
+        doc.text('Truck: ', 14, startY + 7);
+        doc.text('Period: ', 14, startY + 12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(driverName, 32, startY + 2);
+        doc.text(truck, 32, startY + 7);
+        doc.text(period, 32, startY + 12);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Total Miles: ', pageWidth / 2, startY + 2);
+        doc.text('Fuel Cost: ', pageWidth / 2, startY + 7);
+        doc.text('Total Loads: ', pageWidth / 2, startY + 12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(totalMiles, pageWidth / 2 + 25, startY + 2);
+        doc.text(fuelCost, pageWidth / 2 + 25, startY + 7);
+        doc.text(totalLoads, pageWidth / 2 + 25, startY + 12);
+
+        var tableY = startY + 20;
+
+        // Miles Per Day table
+        if (filteredReport.length) {
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(26, 86, 219);
+            doc.text('Miles Per Day (Odometer Tracking)', 14, tableY);
+            doc.setTextColor(0, 0, 0);
+            tableY += 3;
+
+            var milesHeaders = ['Driver', 'Truck', 'Date', 'Start Odo', 'End Odo', 'Total Miles', 'Missing Miles', 'Notes'];
+            var milesRows = filteredReport.map(function(r) {
+                return [r.driverName || '', r.truck || '', formatDate(r.date), r.startOdo, r.endOdo, r.totalMiles, r.missingMiles, r.notes || ''];
+            });
+
+            var totalMilesCalc = 0, totalMissing = 0;
+            filteredReport.forEach(function(r) {
+                totalMilesCalc += (parseFloat(r.totalMiles) || 0);
+                totalMissing += (parseFloat(r.missingMiles) || 0);
+            });
+            milesRows.push(['', '', '', '', 'TOTAL:', totalMilesCalc.toFixed(0), totalMissing.toFixed(0), '']);
+
+            doc.autoTable({
+                head: [milesHeaders],
+                body: milesRows,
+                startY: tableY,
+                styles: { fontSize: 7, cellPadding: 1.5 },
+                headStyles: { fillColor: [26, 86, 219], fontSize: 7, fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [245, 247, 250] },
+                didParseCell: function(data) {
+                    if (data.row.index === milesRows.length - 1 && data.section === 'body') {
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fillColor = [219, 234, 254];
+                    }
+                },
+                margin: { left: 14, right: 14 }
+            });
+
+            tableY = doc.lastAutoTable.finalY + 10;
+        }
+
+        // Fuel Summary table
+        var fuelSummaryTbody = document.querySelectorAll('#reportFuelTable tbody tr');
+        if (fuelSummaryTbody.length > 0) {
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(26, 86, 219);
+            doc.text('Fuel Summary', 14, tableY);
+            doc.setTextColor(0, 0, 0);
+            tableY += 3;
+
+            var fuelHeaders = ['Date', 'Location', 'Item', 'Gallons', 'Amount'];
+            var fuelRows = [];
+            fuelSummaryTbody.forEach(function(tr) {
+                var cells = tr.querySelectorAll('td');
+                if (cells.length >= 5) {
+                    fuelRows.push([cells[0].textContent, cells[1].textContent, cells[2].textContent, cells[3].textContent, cells[4].textContent]);
+                }
+            });
+
+            if (fuelRows.length) {
+                doc.autoTable({
+                    head: [fuelHeaders],
+                    body: fuelRows,
+                    startY: tableY,
+                    styles: { fontSize: 7, cellPadding: 1.5 },
+                    headStyles: { fillColor: [26, 86, 219], fontSize: 7, fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: [245, 247, 250] },
+                    margin: { left: 14, right: 14 }
+                });
+                tableY = doc.lastAutoTable.finalY + 10;
+            }
+        }
+
+        // Load Summary table
+        var loadSummaryTbody = document.querySelectorAll('#reportLoadsTable tbody tr');
+        if (loadSummaryTbody.length > 0) {
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(26, 86, 219);
+            doc.text('Load Summary', 14, tableY);
+            doc.setTextColor(0, 0, 0);
+            tableY += 3;
+
+            var loadHeaders = ['InvoiceID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date', 'Dropoff', 'Driver', 'Truck', 'Trailer'];
+            var loadRows = [];
+            loadSummaryTbody.forEach(function(tr) {
+                var cells = tr.querySelectorAll('td');
+                if (cells.length >= 10) {
+                    var row = [];
+                    for (var i = 0; i < 10; i++) row.push(cells[i].textContent);
+                    loadRows.push(row);
+                }
+            });
+
+            if (loadRows.length) {
+                doc.autoTable({
+                    head: [loadHeaders],
+                    body: loadRows,
+                    startY: tableY,
+                    styles: { fontSize: 6, cellPadding: 1.5 },
+                    headStyles: { fillColor: [26, 86, 219], fontSize: 6, fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: [245, 247, 250] },
+                    margin: { left: 14, right: 14 }
+                });
+            }
+        }
+
+        doc.save('Driver_Report.pdf');
+        showToast('Report PDF exported', 'success');
+    }
 }
 
 // ===== Actions =====
