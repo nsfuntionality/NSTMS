@@ -30,7 +30,8 @@
                     <li class="active" data-tab="fuel"><span class="icon">&#9981;</span> Fuel</li>
                     <li data-tab="loads"><span class="icon">&#128666;</span> Loads</li>
                     <li data-tab="report"><span class="icon">&#128202;</span> Report</li>
-                    <li data-tab="upload"><span class="icon">&#128228;</span> Upload Files</li>
+                    <li data-tab="upload" class="audit-hide"><span class="icon">&#128228;</span> Upload Files</li>
+                    <li data-tab="settings"><span class="icon">&#9881;</span> Settings</li>
                 </ul>
             </div>
             <div class="sidebar-section">
@@ -91,8 +92,8 @@
                 <div class="content-header">
                     <h2>Fuel Transactions</h2>
                     <div class="content-actions">
-                        <button class="btn btn-sm btn-primary" id="addFuelBtn">+ Add Record</button>
-                        <button class="btn btn-sm btn-success" id="saveFuelExcel">Save to Excel</button>
+                        <button class="btn btn-sm btn-primary audit-hide" id="addFuelBtn">+ Add Record</button>
+                        <button class="btn btn-sm btn-success audit-hide" id="saveFuelExcel">Save to Excel</button>
                         <button class="btn btn-sm btn-outline" id="exportFuelCSV">Export CSV</button>
                     </div>
                 </div>
@@ -138,8 +139,8 @@
                 <div class="content-header">
                     <h2>Load Records</h2>
                     <div class="content-actions">
-                        <button class="btn btn-sm btn-primary" id="addLoadBtn">+ Add Record</button>
-                        <button class="btn btn-sm btn-success" id="saveLoadsExcel">Save to Excel</button>
+                        <button class="btn btn-sm btn-primary audit-hide" id="addLoadBtn">+ Add Record</button>
+                        <button class="btn btn-sm btn-success audit-hide" id="saveLoadsExcel">Save to Excel</button>
                         <button class="btn btn-sm btn-outline" id="exportLoadsCSV">Export CSV</button>
                     </div>
                 </div>
@@ -174,7 +175,7 @@
                 <div class="content-header">
                     <h2>Driver Earning Report</h2>
                     <div class="content-actions">
-                        <button class="btn btn-sm btn-success" id="saveReportExcel">Save to Excel</button>
+                        <button class="btn btn-sm btn-success audit-hide" id="saveReportExcel">Save to Excel</button>
                         <button class="btn btn-sm btn-outline" id="exportReportCSV">Export CSV</button>
                     </div>
                 </div>
@@ -346,8 +347,53 @@
                     <p class="empty-state">No files stored yet. Upload files above to get started.</p>
                 </div>
                 <div style="margin-top: 20px;">
-                    <button class="btn btn-outline btn-danger" id="clearAllData">Clear All Stored Data</button>
-                    <button class="btn btn-outline" id="loadSampleData">Load Sample Data</button>
+                    <button class="btn btn-outline btn-danger audit-hide" id="clearAllData">Clear All Stored Data</button>
+                    <button class="btn btn-outline audit-hide" id="loadSampleData">Load Sample Data</button>
+                </div>
+            </div>
+
+            <!-- Tab: Settings -->
+            <div class="tab-content" id="tab-settings">
+                <div class="content-header">
+                    <h2>Settings</h2>
+                </div>
+
+                <!-- Audit Mode -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <div>
+                            <h3>Audit Mode</h3>
+                            <p class="settings-desc">When enabled, all data modification features (Add, Edit, Delete, Upload, Save to Excel) are hidden. The system becomes view-only for auditor review.</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="auditModeToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div id="auditModeStatus" class="audit-status"></div>
+                </div>
+
+                <!-- Manage Credentials -->
+                <div class="settings-card">
+                    <h3>Manage Users</h3>
+                    <p class="settings-desc">Add, edit, or remove user credentials. Changes are saved to the settings file.</p>
+                    <div id="usersTableWrapper" style="margin-top: 16px;">
+                        <table class="data-table" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Password</th>
+                                    <th>Display Name</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <button class="btn btn-sm btn-primary" id="addUserBtn">+ Add User</button>
+                        <button class="btn btn-sm btn-success" id="saveSettingsBtn">Save Settings to File</button>
+                    </div>
                 </div>
             </div>
 

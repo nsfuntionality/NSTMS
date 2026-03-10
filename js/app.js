@@ -34,6 +34,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setupExport();
     setupActions();
     setupModal();
+    setupSettings();
+    applyAuditMode();
     renderAll();
     // Auto-load from Excel data files if no data in localStorage
     if (fuelData.length === 0 && loadsData.length === 0 && reportData.length === 0) {
@@ -1529,4 +1531,122 @@ function showToast(message, type) {
     setTimeout(function() {
         toast.remove();
     }, 4000);
+}
+
+// ===== Settings & Audit Mode =====
+var settingsData = { users: [], auditMode: false };
+
+function setupSettings() {
+    // Load settings from JSON
+    fetch('data/settings.json')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            settingsData = data;
+            renderUsersTable();
+            // Sync audit toggle with loaded settings
+            var toggle = document.getElementById('auditModeToggle');
+            // Check sessionStorage first (set at login), fallback to file
+            var sessionAudit = sessionStorage.getItem('tms_audit_mode');
+            if (sessionAudit !== null) {
+                toggle.checked = sessionAudit === 'true';
+            } else {
+                toggle.checked = settingsData.auditMode || false;
+            }
+            applyAuditMode();
+        })
+        .catch(function() {
+            settingsData = { users: [], auditMode: false };
+        });
+
+    // Audit mode toggle
+    document.getElementById('auditModeToggle').addEventListener('change', function() {
+        settingsData.auditMode = this.checked;
+        sessionStorage.setItem('tms_audit_mode', this.checked ? 'true' : 'false');
+        applyAuditMode();
+    });
+
+    // Add user button
+    document.getElementById('addUserBtn').addEventListener('click', function() {
+        settingsData.users.push({ username: '', password: '', name: '' });
+        renderUsersTable();
+    });
+
+    // Save settings to file (downloads updated settings.json)
+    document.getElementById('saveSettingsBtn').addEventListener('click', function() {
+        // Read current values from table inputs
+        syncUsersFromTable();
+        settingsData.auditMode = document.getElementById('auditModeToggle').checked;
+
+        var blob = new Blob([JSON.stringify(settingsData, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'settings.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Settings file downloaded. Replace data/settings.json and push to update.', 'success');
+    });
+}
+
+function renderUsersTable() {
+    var tbody = document.querySelector('#usersTable tbody');
+    tbody.innerHTML = '';
+    settingsData.users.forEach(function(u, i) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td><input type="text" class="settings-input" data-field="username" data-idx="' + i + '" value="' + escAttr(u.username) + '"></td>' +
+            '<td><input type="password" class="settings-input" data-field="password" data-idx="' + i + '" value="' + escAttr(u.password) + '"></td>' +
+            '<td><input type="text" class="settings-input" data-field="name" data-idx="' + i + '" value="' + escAttr(u.name) + '"></td>' +
+            '<td><button class="btn-delete" data-idx="' + i + '">Remove</button></td>';
+        tbody.appendChild(tr);
+    });
+
+    // Wire up remove buttons
+    tbody.querySelectorAll('.btn-delete').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var idx = parseInt(this.dataset.idx);
+            settingsData.users.splice(idx, 1);
+            renderUsersTable();
+        });
+    });
+
+    // Wire up input changes
+    tbody.querySelectorAll('.settings-input').forEach(function(input) {
+        input.addEventListener('change', function() {
+            var idx = parseInt(this.dataset.idx);
+            var field = this.dataset.field;
+            settingsData.users[idx][field] = this.value;
+        });
+    });
+}
+
+function syncUsersFromTable() {
+    document.querySelectorAll('#usersTable .settings-input').forEach(function(input) {
+        var idx = parseInt(input.dataset.idx);
+        var field = input.dataset.field;
+        if (settingsData.users[idx]) {
+            settingsData.users[idx][field] = input.value;
+        }
+    });
+}
+
+function applyAuditMode() {
+    var isAudit = sessionStorage.getItem('tms_audit_mode') === 'true';
+    var toggle = document.getElementById('auditModeToggle');
+    if (toggle) toggle.checked = isAudit;
+
+    var statusEl = document.getElementById('auditModeStatus');
+    if (isAudit) {
+        document.body.classList.add('audit-mode');
+        if (statusEl) {
+            statusEl.textContent = 'AUDIT MODE IS ON — All data modification features are hidden.';
+            statusEl.className = 'audit-status active';
+        }
+    } else {
+        document.body.classList.remove('audit-mode');
+        if (statusEl) {
+            statusEl.textContent = 'Audit mode is off — Normal operation.';
+            statusEl.className = 'audit-status inactive';
+        }
+    }
 }
