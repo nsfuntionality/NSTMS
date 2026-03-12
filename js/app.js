@@ -421,35 +421,6 @@ function renderTripTable() {
 }
 
 function renderReport() {
-    var driver = '--';
-    var truck = '--';
-    var periodStart = '';
-    var periodEnd = '';
-
-    if (filteredReport.length > 0) {
-        var drivers = new Set();
-        var trucks = new Set();
-        filteredReport.forEach(function(r) {
-            if (r.driverName) drivers.add(r.driverName);
-            if (r.truck) trucks.add(r.truck);
-        });
-        if (drivers.size) driver = Array.from(drivers).join(', ');
-        if (trucks.size) truck = Array.from(trucks).join(', ');
-    }
-
-    var allDates = [];
-    filteredReport.forEach(function(r) { if (r.date) allDates.push(r.date); });
-    allDates.sort();
-    if (allDates.length) {
-        periodStart = allDates[0];
-        periodEnd = allDates[allDates.length - 1];
-    }
-
-    document.getElementById('rptDriver').textContent = driver;
-    document.getElementById('rptTruck').textContent = truck;
-    document.getElementById('rptPeriod').textContent = periodStart && periodEnd
-        ? formatDate(periodStart) + ' - ' + formatDate(periodEnd) : '--';
-
     // Miles Per Day table
     var milesBody = document.querySelector('#reportMilesTable tbody');
     milesBody.innerHTML = '';
@@ -1667,25 +1638,10 @@ function exportPDF(type) {
 
     } else if (type === 'report') {
         var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-        var startY = addPDFHeader(doc, 'Driver Earning Report');
+        var startY = addPDFHeader(doc, 'Earning Report');
         var pageWidth = doc.internal.pageSize.getWidth();
 
-        // Summary section
-        var driverName = document.getElementById('rptDriver').textContent;
-        var truck = document.getElementById('rptTruck').textContent;
-        var period = document.getElementById('rptPeriod').textContent;
-
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Driver: ', 14, startY + 2);
-        doc.text('Truck: ', 14, startY + 7);
-        doc.text('Period: ', 14, startY + 12);
-        doc.setFont('helvetica', 'normal');
-        doc.text(driverName, 32, startY + 2);
-        doc.text(truck, 32, startY + 7);
-        doc.text(period, 32, startY + 12);
-
-        var tableY = startY + 20;
+        var tableY = startY + 5;
 
         // Miles Per Day table
         if (filteredReport.length) {

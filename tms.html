@@ -39,7 +39,7 @@
                 <ul class="sidebar-nav">
                     <li class="active" data-tab="fuel"><span class="icon">&#9981;</span> Fuel</li>
                     <li data-tab="loads"><span class="icon">&#128666;</span> Loads</li>
-                    <li data-tab="report"><span class="icon">&#128202;</span> Report</li>
+                    <li data-tab="report"><span class="icon">&#128202;</span> Earning Report</li>
                     <li data-tab="tripsheet"><span class="icon">&#128203;</span> Trip Sheet</li>
                     <li data-tab="upload" class="audit-hide"><span class="icon">&#128228;</span> Upload Files</li>
                 </ul>
@@ -166,26 +166,11 @@
             <!-- Tab: Report -->
             <div class="tab-content" id="tab-report">
                 <div class="content-header">
-                    <h2>Driver Earning Report</h2>
+                    <h2>Earning Report</h2>
                     <div class="content-actions">
                         <button class="btn btn-sm btn-success audit-hide" id="saveReportExcel">Save to Excel</button>
                         <button class="btn btn-sm btn-outline" id="exportReportCSV">Export CSV</button>
                         <button class="btn btn-sm btn-pdf" id="exportReportPDF">Export PDF</button>
-                    </div>
-                </div>
-                <!-- Report Summary Cards -->
-                <div class="report-summary">
-                    <div class="report-card">
-                        <span class="report-card-label">Driver</span>
-                        <span class="report-card-value" id="rptDriver">--</span>
-                    </div>
-                    <div class="report-card">
-                        <span class="report-card-label">Truck</span>
-                        <span class="report-card-value" id="rptTruck">--</span>
-                    </div>
-                    <div class="report-card">
-                        <span class="report-card-label">Period</span>
-                        <span class="report-card-value" id="rptPeriod">--</span>
                     </div>
                 </div>
                 <!-- Miles Per Day Table -->
