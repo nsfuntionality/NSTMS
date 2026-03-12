@@ -351,7 +351,6 @@ function renderLoadsTable() {
         filteredLoads.forEach(function(r) {
             var realIdx = loadsData.indexOf(r);
             var tr = document.createElement('tr');
-            if (r.notes) tr.classList.add('highlight-row');
             tr.innerHTML =
                 '<td>' + esc(r.invoiceId) + '</td>' +
                 '<td>' + esc(r.loadNum) + '</td>' +
