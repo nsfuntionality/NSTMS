@@ -32,6 +32,7 @@
                     <li class="active" data-tab="fuel"><span class="icon">&#9981;</span> Fuel</li>
                     <li data-tab="loads"><span class="icon">&#128666;</span> Loads</li>
                     <li data-tab="report"><span class="icon">&#128202;</span> Report</li>
+                    <li data-tab="tripsheet"><span class="icon">&#128203;</span> Trip Sheet</li>
                     <li data-tab="upload" class="audit-hide"><span class="icon">&#128228;</span> Upload Files</li>
                     <li data-tab="settings"><span class="icon">&#9881;</span> Settings</li>
                 </ul>
@@ -45,6 +46,10 @@
                 <div class="stat-card">
                     <span class="stat-label">Total Load Records</span>
                     <span class="stat-value" id="statLoads">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Trip Sheet Records</span>
+                    <span class="stat-value" id="statTrips">0</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">Total Fuel Cost</span>
@@ -294,6 +299,44 @@
                 </div>
             </div>
 
+            <!-- Tab: Trip Sheet -->
+            <div class="tab-content" id="tab-tripsheet">
+                <div class="content-header">
+                    <h2>Local Trip Sheet</h2>
+                    <div class="content-actions">
+                        <button class="btn btn-sm btn-primary audit-hide" id="addTripBtn">+ Add Record</button>
+                        <button class="btn btn-sm btn-success audit-hide" id="saveTripExcel">Save to Excel</button>
+                        <button class="btn btn-sm btn-outline" id="exportTripCSV">Export CSV</button>
+                        <button class="btn btn-sm btn-pdf" id="exportTripPDF">Export PDF</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table" id="tripTable">
+                        <thead>
+                            <tr>
+                                <th>Driver Name</th>
+                                <th>Truck</th>
+                                <th>Day</th>
+                                <th>Start Time</th>
+                                <th>End Time</th>
+                                <th>Total Hours</th>
+                                <th>Off Duty Day</th>
+                                <th>Trip Destination City/State</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="5" class="text-right"><strong>Total Hours:</strong></td>
+                                <td id="tripTotalHours"><strong>0</strong></td>
+                                <td colspan="3"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
             <!-- Tab: Upload -->
             <div class="tab-content" id="tab-upload">
                 <div class="content-header">
@@ -342,6 +385,15 @@
                         <label for="reportFileInput" class="btn btn-primary file-label">Choose Report File</label>
                         <span class="file-name" id="reportFileName">No file chosen</span>
                         <button class="btn btn-primary" id="uploadReportBtn" disabled>Upload Report</button>
+                    </div>
+                    <div class="upload-card">
+                        <h3>&#128203; Local Trip Sheet File</h3>
+                        <p>Local Trip Sheet Excel file (.xlsx)</p>
+                        <p class="upload-hint">Columns: Driver Name, Truck, Day, Start Time, End Time, Total Hours, Off Duty Day, Destination</p>
+                        <input type="file" id="tripFileInput" accept=".xlsx,.xls,.csv" class="file-input">
+                        <label for="tripFileInput" class="btn btn-primary file-label">Choose Trip Sheet File</label>
+                        <span class="file-name" id="tripFileName">No file chosen</span>
+                        <button class="btn btn-primary" id="uploadTripBtn" disabled>Upload Trip Sheet</button>
                     </div>
                 </div>
                 <!-- Stored Data -->

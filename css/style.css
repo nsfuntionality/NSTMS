@@ -910,7 +910,10 @@ body.audit-mode #fuelTable th:last-child,
 body.audit-mode #fuelTable td:last-child,
 body.audit-mode #fuelTable tfoot td:last-child,
 body.audit-mode #loadsTable th:last-child,
-body.audit-mode #loadsTable td:last-child {
+body.audit-mode #loadsTable td:last-child,
+body.audit-mode #tripTable th:last-child,
+body.audit-mode #tripTable td:last-child,
+body.audit-mode #tripTable tfoot td:last-child {
     display: none !important;
 }
 
