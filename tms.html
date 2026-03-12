@@ -6,8 +6,8 @@
     <title>Carrier TMS - Dashboard</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
     <!-- Top Navigation -->
@@ -36,25 +36,6 @@
                     <li data-tab="upload" class="audit-hide"><span class="icon">&#128228;</span> Upload Files</li>
                     <li data-tab="settings"><span class="icon">&#9881;</span> Settings</li>
                 </ul>
-            </div>
-            <div class="sidebar-section">
-                <h3>Quick Stats</h3>
-                <div class="stat-card">
-                    <span class="stat-label">Total Fuel Records</span>
-                    <span class="stat-value" id="statFuel">0</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Total Load Records</span>
-                    <span class="stat-value" id="statLoads">0</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Trip Sheet Records</span>
-                    <span class="stat-value" id="statTrips">0</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Total Fuel Cost</span>
-                    <span class="stat-value" id="statFuelCost">$0</span>
-                </div>
             </div>
         </aside>
 
@@ -167,10 +148,6 @@
                                 <th>Driver</th>
                                 <th>TruckName</th>
                                 <th>Trailer</th>
-                                <th>Shipping ID</th>
-                                <th>Pickup Datetime</th>
-                                <th>Delivery Datetime</th>
-                                <th>Notes</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -203,18 +180,6 @@
                         <span class="report-card-label">Period</span>
                         <span class="report-card-value" id="rptPeriod">--</span>
                     </div>
-                    <div class="report-card highlight">
-                        <span class="report-card-label">Total Miles</span>
-                        <span class="report-card-value" id="rptTotalMiles">0</span>
-                    </div>
-                    <div class="report-card highlight">
-                        <span class="report-card-label">Total Fuel Cost</span>
-                        <span class="report-card-value" id="rptFuelCost">$0</span>
-                    </div>
-                    <div class="report-card highlight">
-                        <span class="report-card-label">Total Loads</span>
-                        <span class="report-card-value" id="rptTotalLoads">0</span>
-                    </div>
                 </div>
                 <!-- Miles Per Day Table -->
                 <div class="content-header" style="margin-top:20px;">
@@ -230,8 +195,6 @@
                                 <th>Start Odo</th>
                                 <th>End Odo</th>
                                 <th>Total Miles</th>
-                                <th>Missing Miles</th>
-                                <th>Notes</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -239,8 +202,6 @@
                             <tr>
                                 <td colspan="5" class="text-right"><strong>Totals:</strong></td>
                                 <td id="rptMilesTotal"><strong>0</strong></td>
-                                <td id="rptMissingTotal"><strong>0</strong></td>
-                                <td></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -288,10 +249,6 @@
                                 <th>Driver</th>
                                 <th>TruckName</th>
                                 <th>Trailer</th>
-                                <th>Shipping ID</th>
-                                <th>Pickup Datetime</th>
-                                <th>Delivery Datetime</th>
-                                <th>Notes</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
