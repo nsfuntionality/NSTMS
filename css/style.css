@@ -232,6 +232,65 @@ body {
     color: var(--text-light);
 }
 
+.nav-dropdown {
+    position: relative;
+}
+
+.nav-dropdown-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text);
+    transition: background 0.15s;
+}
+
+.nav-dropdown-btn:hover {
+    background: var(--bg);
+}
+
+.nav-dropdown-arrow {
+    font-size: 10px;
+    color: var(--text-light);
+}
+
+.nav-dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    min-width: 160px;
+    z-index: 200;
+    overflow: hidden;
+}
+
+.nav-dropdown-menu.show {
+    display: block;
+}
+
+.nav-dropdown-item {
+    display: block;
+    padding: 10px 16px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+    transition: background 0.15s;
+}
+
+.nav-dropdown-item:hover {
+    background: var(--bg);
+}
+
 /* ===== Layout ===== */
 .main-container {
     display: flex;
@@ -905,7 +964,7 @@ body.audit-mode .btn-delete {
     display: none !important;
 }
 
-/* Hide Actions column in fuel and loads tables */
+/* Hide Actions column in fuel, loads, and trip tables */
 body.audit-mode #fuelTable th:last-child,
 body.audit-mode #fuelTable td:last-child,
 body.audit-mode #fuelTable tfoot td:last-child,
@@ -914,6 +973,16 @@ body.audit-mode #loadsTable td:last-child,
 body.audit-mode #tripTable th:last-child,
 body.audit-mode #tripTable td:last-child,
 body.audit-mode #tripTable tfoot td:last-child {
+    display: none !important;
+}
+
+/* Hide InvoiceID, Load #, Broker (first 3 columns) in Loads table during audit mode */
+body.audit-mode #loadsTable th:nth-child(1),
+body.audit-mode #loadsTable td:nth-child(1),
+body.audit-mode #loadsTable th:nth-child(2),
+body.audit-mode #loadsTable td:nth-child(2),
+body.audit-mode #loadsTable th:nth-child(3),
+body.audit-mode #loadsTable td:nth-child(3) {
     display: none !important;
 }
 

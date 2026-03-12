@@ -17,8 +17,16 @@
             <span class="nav-title">Carrier TMS</span>
         </div>
         <div class="nav-right">
-            <span class="nav-user" id="navUser">Admin</span>
-            <button class="btn btn-sm btn-outline" id="logoutBtn">Logout</button>
+            <div class="nav-dropdown">
+                <button class="nav-dropdown-btn" id="navUserBtn">
+                    <span class="nav-user" id="navUser">Admin</span>
+                    <span class="nav-dropdown-arrow">&#9662;</span>
+                </button>
+                <div class="nav-dropdown-menu" id="navDropdownMenu">
+                    <a href="#" class="nav-dropdown-item" id="navSettingsBtn">&#9881; Settings</a>
+                    <a href="#" class="nav-dropdown-item" id="logoutBtn">&#128682; Logout</a>
+                </div>
+            </div>
         </div>
     </nav>
 
@@ -34,7 +42,6 @@
                     <li data-tab="report"><span class="icon">&#128202;</span> Report</li>
                     <li data-tab="tripsheet"><span class="icon">&#128203;</span> Trip Sheet</li>
                     <li data-tab="upload" class="audit-hide"><span class="icon">&#128228;</span> Upload Files</li>
-                    <li data-tab="settings"><span class="icon">&#9881;</span> Settings</li>
                 </ul>
             </div>
         </aside>
@@ -206,53 +213,12 @@
                         </tfoot>
                     </table>
                 </div>
-                <!-- Fuel Summary Table -->
-                <div class="content-header" style="margin-top:20px;">
-                    <h3>Fuel Summary</h3>
-                </div>
-                <div class="table-wrapper">
-                    <table class="data-table" id="reportFuelTable">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Location</th>
-                                <th>Item</th>
-                                <th>Gallons</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="3" class="text-right"><strong>Total:</strong></td>
-                                <td id="rptFuelGallons"><strong>0</strong></td>
-                                <td id="rptFuelTotal"><strong>$0</strong></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-                <!-- Load Summary Table -->
-                <div class="content-header" style="margin-top:20px;">
-                    <h3>Load Summary</h3>
-                </div>
-                <div class="table-wrapper">
-                    <table class="data-table" id="reportLoadsTable">
-                        <thead>
-                            <tr>
-                                <th>InvoiceID</th>
-                                <th>Load #</th>
-                                <th>Broker</th>
-                                <th>Pick Date</th>
-                                <th>Pickup</th>
-                                <th>Drop Date</th>
-                                <th>Dropoff</th>
-                                <th>Driver</th>
-                                <th>TruckName</th>
-                                <th>Trailer</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                <!-- Total Earnings -->
+                <div class="report-summary" style="margin-top:20px;">
+                    <div class="report-card">
+                        <span class="report-card-label">Total Earnings (@ $0.50/mile)</span>
+                        <span class="report-card-value" id="rptTotalEarnings">$0.00</span>
+                    </div>
                 </div>
             </div>
 

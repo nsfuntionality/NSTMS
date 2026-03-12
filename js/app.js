@@ -151,9 +151,30 @@ function setupNavigation() {
         });
     });
 
-    document.getElementById('logoutBtn').addEventListener('click', function() {
+    document.getElementById('logoutBtn').addEventListener('click', function(e) {
+        e.preventDefault();
         sessionStorage.removeItem('tms_user');
         window.location.href = 'index.html';
+    });
+
+    // Navbar dropdown toggle
+    var navUserBtn = document.getElementById('navUserBtn');
+    var navDropdownMenu = document.getElementById('navDropdownMenu');
+    navUserBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        navDropdownMenu.classList.toggle('show');
+    });
+    document.addEventListener('click', function() {
+        navDropdownMenu.classList.remove('show');
+    });
+
+    // Settings link in dropdown
+    document.getElementById('navSettingsBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        navDropdownMenu.classList.remove('show');
+        document.querySelectorAll('.sidebar-nav li').forEach(function(el) { el.classList.remove('active'); });
+        document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.remove('active'); });
+        document.getElementById('tab-settings').classList.add('active');
     });
 }
 
@@ -405,31 +426,18 @@ function renderReport() {
     var periodStart = '';
     var periodEnd = '';
 
-    if (filteredLoads.length > 0) {
+    if (filteredReport.length > 0) {
         var drivers = new Set();
         var trucks = new Set();
-        filteredLoads.forEach(function(r) {
-            if (r.driver) r.driver.split('/').forEach(function(d) { drivers.add(d.trim()); });
+        filteredReport.forEach(function(r) {
+            if (r.driverName) drivers.add(r.driverName);
             if (r.truck) trucks.add(r.truck);
         });
-        driver = Array.from(drivers).join(', ');
-        truck = Array.from(trucks).join(', ');
-    }
-    if (filteredFuel.length > 0 && (!driver || driver === '--')) {
-        var driverNames = new Set();
-        filteredFuel.forEach(function(r) { if (r.driverName) driverNames.add(r.driverName); });
-        if (driverNames.size) driver = Array.from(driverNames).join(', ');
-        var truckNames = new Set();
-        filteredFuel.forEach(function(r) { if (r.unit) truckNames.add(r.unit); });
-        if (truckNames.size) truck = Array.from(truckNames).join(', ');
+        if (drivers.size) driver = Array.from(drivers).join(', ');
+        if (trucks.size) truck = Array.from(trucks).join(', ');
     }
 
     var allDates = [];
-    filteredFuel.forEach(function(r) { if (r.tranDate) allDates.push(r.tranDate); });
-    filteredLoads.forEach(function(r) {
-        if (r.pickDate) allDates.push(r.pickDate);
-        if (r.dropDate) allDates.push(r.dropDate);
-    });
     filteredReport.forEach(function(r) { if (r.date) allDates.push(r.date); });
     allDates.sort();
     if (allDates.length) {
@@ -441,13 +449,6 @@ function renderReport() {
     document.getElementById('rptTruck').textContent = truck;
     document.getElementById('rptPeriod').textContent = periodStart && periodEnd
         ? formatDate(periodStart) + ' - ' + formatDate(periodEnd) : '--';
-
-    var fuelTotalAmt = 0;
-    var fuelTotalGal = 0;
-    filteredFuel.forEach(function(r) {
-        fuelTotalAmt += (parseFloat(r.amt) || 0);
-        fuelTotalGal += (parseFloat(r.qty) || 0);
-    });
 
     // Miles Per Day table
     var milesBody = document.querySelector('#reportMilesTable tbody');
@@ -473,48 +474,9 @@ function renderReport() {
 
     document.getElementById('rptMilesTotal').innerHTML = '<strong>' + totalMiles.toLocaleString() + '</strong>';
 
-    // Fuel Summary in report
-    var fuelBody = document.querySelector('#reportFuelTable tbody');
-    fuelBody.innerHTML = '';
-    if (filteredFuel.length === 0) {
-        fuelBody.innerHTML = '<tr><td colspan="5" class="empty-state">No fuel data for this period.</td></tr>';
-    } else {
-        filteredFuel.forEach(function(r) {
-            var tr = document.createElement('tr');
-            tr.innerHTML =
-                '<td>' + formatDate(r.tranDate) + '</td>' +
-                '<td>' + esc(r.locationName) + '</td>' +
-                '<td>' + esc(r.item) + '</td>' +
-                '<td class="amount-cell">' + num(r.qty) + '</td>' +
-                '<td class="amount-cell">$' + num(r.amt) + '</td>';
-            fuelBody.appendChild(tr);
-        });
-    }
-    document.getElementById('rptFuelGallons').innerHTML = '<strong>' + fuelTotalGal.toFixed(2) + '</strong>';
-    document.getElementById('rptFuelTotal').innerHTML = '<strong>$' + fuelTotalAmt.toFixed(2) + '</strong>';
-
-    // Load Summary in report (all columns matching Loads.xlsx)
-    var loadsBody = document.querySelector('#reportLoadsTable tbody');
-    loadsBody.innerHTML = '';
-    if (filteredLoads.length === 0) {
-        loadsBody.innerHTML = '<tr><td colspan="14" class="empty-state">No load data for this period.</td></tr>';
-    } else {
-        filteredLoads.forEach(function(r) {
-            var tr = document.createElement('tr');
-            tr.innerHTML =
-                '<td>' + esc(r.invoiceId) + '</td>' +
-                '<td>' + esc(r.loadNum) + '</td>' +
-                '<td>' + esc(r.broker) + '</td>' +
-                '<td>' + formatDate(r.pickDate) + '</td>' +
-                '<td>' + esc(r.pickup) + '</td>' +
-                '<td>' + formatDate(r.dropDate) + '</td>' +
-                '<td>' + esc(r.dropoff) + '</td>' +
-                '<td>' + esc(r.driver) + '</td>' +
-                '<td>' + esc(r.truck) + '</td>' +
-                '<td>' + esc(r.trailer) + '</td>';
-            loadsBody.appendChild(tr);
-        });
-    }
+    // Total Earnings at $0.50 per mile
+    var totalEarnings = totalMiles * 0.50;
+    document.getElementById('rptTotalEarnings').textContent = '$' + totalEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function renderStoredFiles() {
@@ -1488,8 +1450,8 @@ function parseTripWorkbook(workbook, fileName, sheetNameOverride) {
             driverName: colMap.driverName !== undefined ? (row[colMap.driverName] || '') : '',
             truck: colMap.truck !== undefined ? (row[colMap.truck] || '') : '',
             day: dayStr,
-            startTime: colMap.startTime !== undefined ? String(row[colMap.startTime] || '') : '',
-            endTime: colMap.endTime !== undefined ? String(row[colMap.endTime] || '') : '',
+            startTime: colMap.startTime !== undefined ? formatTime(row[colMap.startTime]) : '',
+            endTime: colMap.endTime !== undefined ? formatTime(row[colMap.endTime]) : '',
             totalHours: colMap.totalHours !== undefined ? (parseFloat(row[colMap.totalHours]) || 0) : 0,
             offDutyDay: isOffDuty,
             destination: colMap.destination !== undefined ? (row[colMap.destination] || '') : ''
@@ -1764,74 +1726,15 @@ function exportPDF(type) {
             tableY = doc.lastAutoTable.finalY + 10;
         }
 
-        // Fuel Summary table
-        var fuelSummaryTbody = document.querySelectorAll('#reportFuelTable tbody tr');
-        if (fuelSummaryTbody.length > 0) {
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(26, 86, 219);
-            doc.text('Fuel Summary', 14, tableY);
-            doc.setTextColor(0, 0, 0);
-            tableY += 3;
+        // Total Earnings
+        var totalEarnings = (totalMilesCalc * 0.50);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(26, 86, 219);
+        doc.text('Total Earnings (@ $0.50/mile): $' + totalEarnings.toFixed(2), 14, tableY);
+        doc.setTextColor(0, 0, 0);
 
-            var fuelHeaders = ['Date', 'Location', 'Item', 'Gallons', 'Amount'];
-            var fuelRows = [];
-            fuelSummaryTbody.forEach(function(tr) {
-                var cells = tr.querySelectorAll('td');
-                if (cells.length >= 5) {
-                    fuelRows.push([cells[0].textContent, cells[1].textContent, cells[2].textContent, cells[3].textContent, cells[4].textContent]);
-                }
-            });
-
-            if (fuelRows.length) {
-                doc.autoTable({
-                    head: [fuelHeaders],
-                    body: fuelRows,
-                    startY: tableY,
-                    styles: { fontSize: 7, cellPadding: 1.5 },
-                    headStyles: { fillColor: [26, 86, 219], fontSize: 7, fontStyle: 'bold' },
-                    alternateRowStyles: { fillColor: [245, 247, 250] },
-                    margin: { left: 14, right: 14 }
-                });
-                tableY = doc.lastAutoTable.finalY + 10;
-            }
-        }
-
-        // Load Summary table
-        var loadSummaryTbody = document.querySelectorAll('#reportLoadsTable tbody tr');
-        if (loadSummaryTbody.length > 0) {
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(26, 86, 219);
-            doc.text('Load Summary', 14, tableY);
-            doc.setTextColor(0, 0, 0);
-            tableY += 3;
-
-            var loadHeaders = ['InvoiceID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date', 'Dropoff', 'Driver', 'Truck', 'Trailer'];
-            var loadRows = [];
-            loadSummaryTbody.forEach(function(tr) {
-                var cells = tr.querySelectorAll('td');
-                if (cells.length >= 10) {
-                    var row = [];
-                    for (var i = 0; i < 10; i++) row.push(cells[i].textContent);
-                    loadRows.push(row);
-                }
-            });
-
-            if (loadRows.length) {
-                doc.autoTable({
-                    head: [loadHeaders],
-                    body: loadRows,
-                    startY: tableY,
-                    styles: { fontSize: 6, cellPadding: 1.5 },
-                    headStyles: { fillColor: [26, 86, 219], fontSize: 6, fontStyle: 'bold' },
-                    alternateRowStyles: { fillColor: [245, 247, 250] },
-                    margin: { left: 14, right: 14 }
-                });
-            }
-        }
-
-        doc.save('Driver_Report.pdf');
+        doc.save('Driver_Earning_Report.pdf');
         showToast('Report PDF exported', 'success');
 
     } else if (type === 'trip') {
@@ -2140,6 +2043,34 @@ function formatExcelTime(val) {
         return val;
     }
     return '';
+}
+
+function formatTime(val) {
+    if (!val) return '';
+    // If it's a Date object (from Excel time-only cells), extract just the time
+    if (val instanceof Date) {
+        var h = val.getHours();
+        var m = val.getMinutes();
+        var ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12;
+        if (h === 0) h = 12;
+        return h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+    }
+    var s = String(val);
+    // If it looks like a full Date string (e.g. "Sun Dec 31 1899 11:26:35 ..."), extract the time
+    var match = s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+    if (match) {
+        var hr = parseInt(match[1]);
+        var min = match[2];
+        var ap = match[4];
+        if (!ap) {
+            ap = hr >= 12 ? 'PM' : 'AM';
+            hr = hr % 12;
+            if (hr === 0) hr = 12;
+        }
+        return hr + ':' + min + ' ' + ap.toUpperCase();
+    }
+    return s;
 }
 
 function formatDate(dateStr) {
