@@ -773,6 +773,16 @@ body {
     background: #eff6ff;
 }
 
+.btn-pdf {
+    background: #dc2626;
+    color: #fff;
+    border: 1px solid #dc2626;
+}
+
+.btn-pdf:hover {
+    background: #b91c1c;
+}
+
 .btn-success {
     background: #059669;
     color: #fff;
@@ -785,6 +795,139 @@ body {
 
 .actions-cell {
     white-space: nowrap;
+}
+
+/* ===== Login Error ===== */
+.login-error {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--danger);
+    font-weight: 500;
+}
+
+/* ===== Settings ===== */
+.settings-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+}
+
+.settings-card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.settings-desc {
+    font-size: 13px;
+    color: var(--text-light);
+    margin-bottom: 4px;
+}
+
+.settings-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 52px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #cbd5e1;
+    border-radius: 28px;
+    transition: 0.3s;
+}
+
+.toggle-slider::before {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background: var(--danger);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(24px);
+}
+
+.audit-status {
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.audit-status.active {
+    color: var(--danger);
+}
+
+.audit-status.inactive {
+    color: var(--success);
+}
+
+/* Audit Mode: hide all modifiable elements */
+body.audit-mode .audit-hide {
+    display: none !important;
+}
+
+body.audit-mode .btn-edit,
+body.audit-mode .btn-delete {
+    display: none !important;
+}
+
+/* Hide Actions column in fuel and loads tables */
+body.audit-mode #fuelTable th:last-child,
+body.audit-mode #fuelTable td:last-child,
+body.audit-mode #fuelTable tfoot td:last-child,
+body.audit-mode #loadsTable th:last-child,
+body.audit-mode #loadsTable td:last-child,
+body.audit-mode #tripTable th:last-child,
+body.audit-mode #tripTable td:last-child,
+body.audit-mode #tripTable tfoot td:last-child {
+    display: none !important;
+}
+
+.settings-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.settings-input:focus {
+    outline: none;
+    border-color: var(--primary);
 }
 
 /* ===== Responsive ===== */

@@ -3,16 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NS TMS - Dashboard</title>
+    <title>Carrier TMS - Dashboard</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
     <!-- Top Navigation -->
     <nav class="navbar">
         <div class="nav-left">
-            <div class="nav-logo">NS</div>
-            <span class="nav-title">NS TMS</span>
+            <div class="nav-logo">CT</div>
+            <span class="nav-title">Carrier TMS</span>
         </div>
         <div class="nav-right">
             <span class="nav-user" id="navUser">Admin</span>
@@ -30,7 +32,9 @@
                     <li class="active" data-tab="fuel"><span class="icon">&#9981;</span> Fuel</li>
                     <li data-tab="loads"><span class="icon">&#128666;</span> Loads</li>
                     <li data-tab="report"><span class="icon">&#128202;</span> Report</li>
-                    <li data-tab="upload"><span class="icon">&#128228;</span> Upload Files</li>
+                    <li data-tab="tripsheet"><span class="icon">&#128203;</span> Trip Sheet</li>
+                    <li data-tab="upload" class="audit-hide"><span class="icon">&#128228;</span> Upload Files</li>
+                    <li data-tab="settings"><span class="icon">&#9881;</span> Settings</li>
                 </ul>
             </div>
             <div class="sidebar-section">
@@ -42,6 +46,10 @@
                 <div class="stat-card">
                     <span class="stat-label">Total Load Records</span>
                     <span class="stat-value" id="statLoads">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Trip Sheet Records</span>
+                    <span class="stat-value" id="statTrips">0</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">Total Fuel Cost</span>
@@ -91,9 +99,10 @@
                 <div class="content-header">
                     <h2>Fuel Transactions</h2>
                     <div class="content-actions">
-                        <button class="btn btn-sm btn-primary" id="addFuelBtn">+ Add Record</button>
-                        <button class="btn btn-sm btn-success" id="saveFuelExcel">Save to Excel</button>
+                        <button class="btn btn-sm btn-primary audit-hide" id="addFuelBtn">+ Add Record</button>
+                        <button class="btn btn-sm btn-success audit-hide" id="saveFuelExcel">Save to Excel</button>
                         <button class="btn btn-sm btn-outline" id="exportFuelCSV">Export CSV</button>
+                        <button class="btn btn-sm btn-pdf" id="exportFuelPDF">Export PDF</button>
                     </div>
                 </div>
                 <div class="table-wrapper">
@@ -138,9 +147,10 @@
                 <div class="content-header">
                     <h2>Load Records</h2>
                     <div class="content-actions">
-                        <button class="btn btn-sm btn-primary" id="addLoadBtn">+ Add Record</button>
-                        <button class="btn btn-sm btn-success" id="saveLoadsExcel">Save to Excel</button>
+                        <button class="btn btn-sm btn-primary audit-hide" id="addLoadBtn">+ Add Record</button>
+                        <button class="btn btn-sm btn-success audit-hide" id="saveLoadsExcel">Save to Excel</button>
                         <button class="btn btn-sm btn-outline" id="exportLoadsCSV">Export CSV</button>
+                        <button class="btn btn-sm btn-pdf" id="exportLoadsPDF">Export PDF</button>
                     </div>
                 </div>
                 <div class="table-wrapper">
@@ -174,8 +184,9 @@
                 <div class="content-header">
                     <h2>Driver Earning Report</h2>
                     <div class="content-actions">
-                        <button class="btn btn-sm btn-success" id="saveReportExcel">Save to Excel</button>
+                        <button class="btn btn-sm btn-success audit-hide" id="saveReportExcel">Save to Excel</button>
                         <button class="btn btn-sm btn-outline" id="exportReportCSV">Export CSV</button>
+                        <button class="btn btn-sm btn-pdf" id="exportReportPDF">Export PDF</button>
                     </div>
                 </div>
                 <!-- Report Summary Cards -->
@@ -288,6 +299,44 @@
                 </div>
             </div>
 
+            <!-- Tab: Trip Sheet -->
+            <div class="tab-content" id="tab-tripsheet">
+                <div class="content-header">
+                    <h2>Local Trip Sheet</h2>
+                    <div class="content-actions">
+                        <button class="btn btn-sm btn-primary audit-hide" id="addTripBtn">+ Add Record</button>
+                        <button class="btn btn-sm btn-success audit-hide" id="saveTripExcel">Save to Excel</button>
+                        <button class="btn btn-sm btn-outline" id="exportTripCSV">Export CSV</button>
+                        <button class="btn btn-sm btn-pdf" id="exportTripPDF">Export PDF</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table" id="tripTable">
+                        <thead>
+                            <tr>
+                                <th>Driver Name</th>
+                                <th>Truck</th>
+                                <th>Day</th>
+                                <th>Start Time</th>
+                                <th>End Time</th>
+                                <th>Total Hours</th>
+                                <th>Off Duty Day</th>
+                                <th>Trip Destination City/State</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="5" class="text-right"><strong>Total Hours:</strong></td>
+                                <td id="tripTotalHours"><strong>0</strong></td>
+                                <td colspan="3"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
             <!-- Tab: Upload -->
             <div class="tab-content" id="tab-upload">
                 <div class="content-header">
@@ -337,6 +386,15 @@
                         <span class="file-name" id="reportFileName">No file chosen</span>
                         <button class="btn btn-primary" id="uploadReportBtn" disabled>Upload Report</button>
                     </div>
+                    <div class="upload-card">
+                        <h3>&#128203; Local Trip Sheet File</h3>
+                        <p>Local Trip Sheet Excel file (.xlsx)</p>
+                        <p class="upload-hint">Columns: Driver Name, Truck, Day, Start Time, End Time, Total Hours, Off Duty Day, Destination</p>
+                        <input type="file" id="tripFileInput" accept=".xlsx,.xls,.csv" class="file-input">
+                        <label for="tripFileInput" class="btn btn-primary file-label">Choose Trip Sheet File</label>
+                        <span class="file-name" id="tripFileName">No file chosen</span>
+                        <button class="btn btn-primary" id="uploadTripBtn" disabled>Upload Trip Sheet</button>
+                    </div>
                 </div>
                 <!-- Stored Data -->
                 <div class="content-header" style="margin-top: 30px;">
@@ -346,8 +404,53 @@
                     <p class="empty-state">No files stored yet. Upload files above to get started.</p>
                 </div>
                 <div style="margin-top: 20px;">
-                    <button class="btn btn-outline btn-danger" id="clearAllData">Clear All Stored Data</button>
-                    <button class="btn btn-outline" id="loadSampleData">Load Sample Data</button>
+                    <button class="btn btn-outline btn-danger audit-hide" id="clearAllData">Clear All Stored Data</button>
+                    <button class="btn btn-outline audit-hide" id="loadSampleData">Load Sample Data</button>
+                </div>
+            </div>
+
+            <!-- Tab: Settings -->
+            <div class="tab-content" id="tab-settings">
+                <div class="content-header">
+                    <h2>Settings</h2>
+                </div>
+
+                <!-- Audit Mode -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <div>
+                            <h3>Audit Mode</h3>
+                            <p class="settings-desc">When enabled, all data modification features (Add, Edit, Delete, Upload, Save to Excel) are hidden. The system becomes view-only for auditor review.</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="auditModeToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div id="auditModeStatus" class="audit-status"></div>
+                </div>
+
+                <!-- Manage Credentials -->
+                <div class="settings-card">
+                    <h3>Manage Users</h3>
+                    <p class="settings-desc">Add, edit, or remove user credentials. Changes are saved to the settings file.</p>
+                    <div id="usersTableWrapper" style="margin-top: 16px;">
+                        <table class="data-table" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Password</th>
+                                    <th>Display Name</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <button class="btn btn-sm btn-primary" id="addUserBtn">+ Add User</button>
+                        <button class="btn btn-sm btn-success" id="saveSettingsBtn">Save Settings to File</button>
+                    </div>
                 </div>
             </div>
 

@@ -13,15 +13,18 @@
 let fuelData = [];
 let loadsData = [];
 let reportData = []; // miles per day / odometer data
+let tripData = [];
 let filteredFuel = [];
 let filteredLoads = [];
 let filteredReport = [];
+let filteredTrip = [];
 
 // ===== Storage Keys =====
 const STORAGE_KEYS = {
     fuel: 'tms_fuel_data',
     loads: 'tms_loads_data',
     report: 'tms_report_data',
+    trip: 'tms_trip_data',
     files: 'tms_uploaded_files'
 };
 
@@ -34,6 +37,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setupExport();
     setupActions();
     setupModal();
+    setupSettings();
+    applyAuditMode();
     renderAll();
     // Auto-load from Excel data files if no data in localStorage
     if (fuelData.length === 0 && loadsData.length === 0 && reportData.length === 0) {
@@ -47,15 +52,18 @@ function loadStoredData() {
         const storedFuel = localStorage.getItem(STORAGE_KEYS.fuel);
         const storedLoads = localStorage.getItem(STORAGE_KEYS.loads);
         const storedReport = localStorage.getItem(STORAGE_KEYS.report);
+        const storedTrip = localStorage.getItem(STORAGE_KEYS.trip);
         if (storedFuel) fuelData = JSON.parse(storedFuel);
         if (storedLoads) loadsData = JSON.parse(storedLoads);
         if (storedReport) reportData = JSON.parse(storedReport);
+        if (storedTrip) tripData = JSON.parse(storedTrip);
     } catch (e) {
         console.error('Error loading stored data:', e);
     }
     filteredFuel = [...fuelData];
     filteredLoads = [...loadsData];
     filteredReport = [...reportData];
+    filteredTrip = [...tripData];
 }
 
 function saveData() {
@@ -63,6 +71,7 @@ function saveData() {
         localStorage.setItem(STORAGE_KEYS.fuel, JSON.stringify(fuelData));
         localStorage.setItem(STORAGE_KEYS.loads, JSON.stringify(loadsData));
         localStorage.setItem(STORAGE_KEYS.report, JSON.stringify(reportData));
+        localStorage.setItem(STORAGE_KEYS.trip, JSON.stringify(tripData));
     } catch (e) {
         console.error('Error saving data:', e);
         showToast('Storage limit reached. Consider clearing old data.', 'error');
@@ -74,7 +83,8 @@ function loadFromDataFiles() {
     var dataFiles = [
         { url: 'data/Fuel.xlsx', type: 'fuel' },
         { url: 'data/Loads.xlsx', type: 'loads' },
-        { url: 'data/Report.xlsx', type: 'report' }
+        { url: 'data/Report.xlsx', type: 'report' },
+        { url: 'data/LocalTripsheet.xlsx', type: 'trip' }
     ];
     var loaded = 0;
     var total = dataFiles.length;
@@ -94,6 +104,8 @@ function loadFromDataFiles() {
                         parseLoadsWorkbook(workbook, fileInfo.url);
                     } else if (fileInfo.type === 'report') {
                         parseReportWorkbook(workbook, fileInfo.url);
+                    } else if (fileInfo.type === 'trip') {
+                        parseTripWorkbook(workbook, fileInfo.url);
                     }
                 } catch (err) {
                     console.warn('Could not parse ' + fileInfo.url + ':', err.message);
@@ -167,6 +179,10 @@ function populateFilterDropdowns() {
         if (r.truck) truckSet.add(r.truck);
         if (r.trailer) trailerSet.add(r.trailer);
     });
+    tripData.forEach(function(r) {
+        if (r.driverName) driverSet.add(r.driverName);
+        if (r.truck) truckSet.add(r.truck);
+    });
 
     populateSelect('filterDriver', driverSet, 'All Drivers');
     populateSelect('filterTruck', truckSet, 'All Trucks');
@@ -216,6 +232,14 @@ function applyFilters() {
         return true;
     });
 
+    filteredTrip = tripData.filter(function(r) {
+        if (startDate && r.day && r.day < startDate) return false;
+        if (endDate && r.day && r.day > endDate) return false;
+        if (driver && r.driverName && r.driverName.indexOf(driver) === -1) return false;
+        if (truck && r.truck !== truck) return false;
+        return true;
+    });
+
     renderAll();
     showToast('Filters applied');
 }
@@ -229,6 +253,7 @@ function clearFilters() {
     filteredFuel = [...fuelData];
     filteredLoads = [...loadsData];
     filteredReport = [...reportData];
+    filteredTrip = [...tripData];
     renderAll();
     showToast('Filters cleared');
 }
@@ -238,6 +263,7 @@ function renderAll() {
     populateFilterDropdowns();
     renderFuelTable();
     renderLoadsTable();
+    renderTripTable();
     renderReport();
     renderStoredFiles();
     updateStats();
@@ -325,6 +351,46 @@ function renderLoadsTable() {
             tbody.appendChild(tr);
         });
     }
+
+    tbody.querySelectorAll('.btn-delete').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            deleteRecord(this.dataset.type, parseInt(this.dataset.idx));
+        });
+    });
+    tbody.querySelectorAll('.btn-edit').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            editRecord(this.dataset.type, parseInt(this.dataset.idx));
+        });
+    });
+}
+
+function renderTripTable() {
+    var tbody = document.querySelector('#tripTable tbody');
+    tbody.innerHTML = '';
+    var totalHours = 0;
+
+    if (filteredTrip.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No trip sheet records found.</td></tr>';
+    } else {
+        filteredTrip.forEach(function(r) {
+            var realIdx = tripData.indexOf(r);
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td>' + esc(r.driverName) + '</td>' +
+                '<td>' + esc(r.truck) + '</td>' +
+                '<td>' + formatDate(r.day) + '</td>' +
+                '<td>' + esc(r.startTime) + '</td>' +
+                '<td>' + esc(r.endTime) + '</td>' +
+                '<td class="amount-cell">' + num(r.totalHours) + '</td>' +
+                '<td>' + (r.offDutyDay ? 'Yes' : '') + '</td>' +
+                '<td>' + esc(r.destination) + '</td>' +
+                '<td class="actions-cell"><button class="btn-edit" data-type="trip" data-idx="' + realIdx + '">Edit</button><button class="btn-delete" data-type="trip" data-idx="' + realIdx + '">Delete</button></td>';
+            tbody.appendChild(tr);
+            totalHours += (parseFloat(r.totalHours) || 0);
+        });
+    }
+
+    document.getElementById('tripTotalHours').innerHTML = '<strong>' + totalHours.toFixed(2) + '</strong>';
 
     tbody.querySelectorAll('.btn-delete').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -504,6 +570,7 @@ function renderStoredFiles() {
 function updateStats() {
     document.getElementById('statFuel').textContent = fuelData.length;
     document.getElementById('statLoads').textContent = loadsData.length;
+    document.getElementById('statTrips').textContent = tripData.length;
     var totalCost = 0;
     fuelData.forEach(function(r) { totalCost += (parseFloat(r.amt) || 0); });
     document.getElementById('statFuelCost').textContent = '$' + totalCost.toFixed(2);
@@ -522,6 +589,9 @@ function deleteRecord(type, idx) {
     } else if (type === 'report') {
         reportData.splice(idx, 1);
         filteredReport = [...reportData];
+    } else if (type === 'trip') {
+        tripData.splice(idx, 1);
+        filteredTrip = [...tripData];
     }
 
     saveData();
@@ -535,6 +605,8 @@ function editRecord(type, idx) {
         openEditFuelModal(idx);
     } else if (type === 'loads') {
         openEditLoadModal(idx);
+    } else if (type === 'trip') {
+        openEditTripModal(idx);
     }
 }
 
@@ -667,6 +739,90 @@ function openEditLoadModal(idx) {
     document.getElementById('modalOverlay').classList.add('active');
 }
 
+function openEditTripModal(idx) {
+    var r = tripData[idx];
+    if (!r) return;
+    document.getElementById('modalTitle').textContent = 'Edit Trip Record';
+    document.getElementById('modalBody').innerHTML =
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Driver Name</label><input type="text" id="mTripDriver" value="' + escAttr(r.driverName) + '"></div>' +
+            '<div class="form-group"><label>Truck</label><input type="text" id="mTripTruck" value="' + escAttr(r.truck) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Day</label><input type="date" id="mTripDay" value="' + escAttr(r.day) + '"></div>' +
+            '<div class="form-group"><label>Destination City/State</label><input type="text" id="mTripDest" value="' + escAttr(r.destination) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Start Time</label><input type="time" id="mTripStart" value="' + escAttr(r.startTime) + '"></div>' +
+            '<div class="form-group"><label>End Time</label><input type="time" id="mTripEnd" value="' + escAttr(r.endTime) + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Total Hours</label><input type="number" step="0.01" id="mTripHours" value="' + escAttr(r.totalHours) + '"></div>' +
+            '<div class="form-group"><label>Off Duty Day</label><select id="mTripOffDuty"><option value="false"' + (!r.offDutyDay ? ' selected' : '') + '>No</option><option value="true"' + (r.offDutyDay ? ' selected' : '') + '>Yes</option></select></div>' +
+        '</div>';
+
+    document.getElementById('modalSave').onclick = function() {
+        tripData[idx] = {
+            driverName: document.getElementById('mTripDriver').value,
+            truck: document.getElementById('mTripTruck').value,
+            day: document.getElementById('mTripDay').value,
+            startTime: document.getElementById('mTripStart').value,
+            endTime: document.getElementById('mTripEnd').value,
+            totalHours: parseFloat(document.getElementById('mTripHours').value) || 0,
+            offDutyDay: document.getElementById('mTripOffDuty').value === 'true',
+            destination: document.getElementById('mTripDest').value
+        };
+        filteredTrip = [...tripData];
+        saveData();
+        renderAll();
+        closeModal();
+        showToast('Trip record updated. Click "Save to Excel" to update the Excel file.', 'success');
+    };
+
+    document.getElementById('modalOverlay').classList.add('active');
+}
+
+function openAddTripModal() {
+    document.getElementById('modalTitle').textContent = 'Add Trip Record';
+    document.getElementById('modalBody').innerHTML =
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Driver Name</label><input type="text" id="mTripDriver" value=""></div>' +
+            '<div class="form-group"><label>Truck</label><input type="text" id="mTripTruck" value=""></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Day</label><input type="date" id="mTripDay" value=""></div>' +
+            '<div class="form-group"><label>Destination City/State</label><input type="text" id="mTripDest" value=""></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Start Time</label><input type="time" id="mTripStart" value=""></div>' +
+            '<div class="form-group"><label>End Time</label><input type="time" id="mTripEnd" value=""></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+            '<div class="form-group"><label>Total Hours</label><input type="number" step="0.01" id="mTripHours" value=""></div>' +
+            '<div class="form-group"><label>Off Duty Day</label><select id="mTripOffDuty"><option value="false" selected>No</option><option value="true">Yes</option></select></div>' +
+        '</div>';
+
+    document.getElementById('modalSave').onclick = function() {
+        tripData.push({
+            driverName: document.getElementById('mTripDriver').value,
+            truck: document.getElementById('mTripTruck').value,
+            day: document.getElementById('mTripDay').value,
+            startTime: document.getElementById('mTripStart').value,
+            endTime: document.getElementById('mTripEnd').value,
+            totalHours: parseFloat(document.getElementById('mTripHours').value) || 0,
+            offDutyDay: document.getElementById('mTripOffDuty').value === 'true',
+            destination: document.getElementById('mTripDest').value
+        });
+        filteredTrip = [...tripData];
+        saveData();
+        renderAll();
+        closeModal();
+        showToast('Trip record added. Click "Save to Excel" to update the Excel file.', 'success');
+    };
+
+    document.getElementById('modalOverlay').classList.add('active');
+}
+
 // ===== Save to Excel =====
 function saveToExcel(type) {
     var ws, wb, filename;
@@ -715,6 +871,20 @@ function saveToExcel(type) {
         wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Report');
         filename = 'Report.xlsx';
+    } else if (type === 'trip') {
+        var tripHeaders = ['Driver Name', 'Truck', 'Day', 'Start Time', 'End Time', 'Total Hours', 'Off Duty Day', 'Destination City/State'];
+        var tripRows = [tripHeaders];
+        tripData.forEach(function(r) {
+            tripRows.push([
+                r.driverName || '', r.truck || '', r.day, r.startTime, r.endTime,
+                r.totalHours, r.offDutyDay ? 'Yes' : '', r.destination || ''
+            ]);
+        });
+        ws = XLSX.utils.aoa_to_sheet(tripRows);
+        ws['!cols'] = tripHeaders.map(function() { return { wch: 18 }; });
+        wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'TripSheet');
+        filename = 'LocalTripsheet.xlsx';
     }
 
     if (wb) {
@@ -736,6 +906,9 @@ function setupModal() {
     });
     document.getElementById('addLoadBtn').addEventListener('click', function() {
         openAddLoadModal();
+    });
+    document.getElementById('addTripBtn').addEventListener('click', function() {
+        openAddTripModal();
     });
 }
 
@@ -920,6 +1093,18 @@ function setupUpload() {
         if (!file) return;
         parseExcelFile(file, 'report');
     });
+
+    // Trip Sheet file
+    var tripInput = document.getElementById('tripFileInput');
+    tripInput.addEventListener('change', function() {
+        document.getElementById('tripFileName').textContent = this.files[0] ? this.files[0].name : 'No file chosen';
+        document.getElementById('uploadTripBtn').disabled = !this.files[0];
+    });
+    document.getElementById('uploadTripBtn').addEventListener('click', function() {
+        var file = tripInput.files[0];
+        if (!file) return;
+        parseExcelFile(file, 'trip');
+    });
 }
 
 // ===== Combined File Parser =====
@@ -982,6 +1167,8 @@ function parseExcelFile(file, type) {
                 parseLoadsWorkbook(workbook, file.name);
             } else if (type === 'report') {
                 parseReportWorkbook(workbook, file.name);
+            } else if (type === 'trip') {
+                parseTripWorkbook(workbook, file.name);
             }
         } catch (err) {
             console.error('Parse error:', err);
@@ -1306,6 +1493,76 @@ function parseReportWorkbook(workbook, fileName, sheetNameOverride) {
     return newData.length;
 }
 
+// ===== Trip Sheet Parser =====
+function parseTripWorkbook(workbook, fileName, sheetNameOverride) {
+    var sheetName = sheetNameOverride || workbook.SheetNames.find(function(n) {
+        return n.toLowerCase().indexOf('trip') !== -1;
+    }) || workbook.SheetNames[0];
+    var sheet = workbook.Sheets[sheetName];
+    var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+    var newData = [];
+    var headerIdx = -1;
+    var colMap = {};
+
+    // Find header row
+    for (var i = 0; i < Math.min(rows.length, 10); i++) {
+        var row = rows[i];
+        if (!row) continue;
+        for (var j = 0; j < row.length; j++) {
+            var cs = String(row[j]).toLowerCase().trim();
+            if (cs === 'day' || cs === 'date') colMap.day = j;
+            if (cs.indexOf('start') !== -1 && cs.indexOf('time') !== -1) colMap.startTime = j;
+            if (cs.indexOf('end') !== -1 && cs.indexOf('time') !== -1) colMap.endTime = j;
+            if (cs.indexOf('total') !== -1 && cs.indexOf('hour') !== -1) colMap.totalHours = j;
+            if (cs.indexOf('off duty') !== -1 || cs.indexOf('check box') !== -1) colMap.offDutyDay = j;
+            if (cs.indexOf('destination') !== -1 || cs.indexOf('city/state') !== -1 || cs.indexOf('trip') !== -1) colMap.destination = j;
+            if (cs.indexOf('driver') !== -1) colMap.driverName = j;
+            if (cs.indexOf('truck') !== -1) colMap.truck = j;
+        }
+        if (colMap.day !== undefined) { headerIdx = i; break; }
+    }
+
+    if (headerIdx === -1) {
+        if (!sheetNameOverride) showToast('Could not find trip sheet headers', 'error');
+        return 0;
+    }
+
+    for (var r = headerIdx + 1; r < rows.length; r++) {
+        var row = rows[r];
+        if (!row) continue;
+        var dayVal = colMap.day !== undefined ? row[colMap.day] : '';
+        if (!dayVal) continue;
+
+        var dayStr = excelDateToStr(dayVal);
+        if (!dayStr) dayStr = String(dayVal);
+
+        var offDuty = colMap.offDutyDay !== undefined ? row[colMap.offDutyDay] : '';
+        var isOffDuty = offDuty === true || offDuty === 'Yes' || offDuty === 'yes' || offDuty === 'X' || offDuty === 'x' || offDuty === 1;
+
+        newData.push({
+            driverName: colMap.driverName !== undefined ? (row[colMap.driverName] || '') : '',
+            truck: colMap.truck !== undefined ? (row[colMap.truck] || '') : '',
+            day: dayStr,
+            startTime: colMap.startTime !== undefined ? String(row[colMap.startTime] || '') : '',
+            endTime: colMap.endTime !== undefined ? String(row[colMap.endTime] || '') : '',
+            totalHours: colMap.totalHours !== undefined ? (parseFloat(row[colMap.totalHours]) || 0) : 0,
+            offDutyDay: isOffDuty,
+            destination: colMap.destination !== undefined ? (row[colMap.destination] || '') : ''
+        });
+    }
+
+    tripData = tripData.concat(newData);
+    filteredTrip = [...tripData];
+    saveData();
+    saveFileRecord(fileName, 'Local Trip Sheet', newData.length);
+    renderAll();
+    if (!sheetNameOverride) {
+        showToast('Loaded ' + newData.length + ' trip records from ' + fileName, 'success');
+    }
+    return newData.length;
+}
+
 // ===== Export =====
 function setupExport() {
     document.getElementById('exportFuelCSV').addEventListener('click', function() {
@@ -1342,6 +1599,22 @@ function setupExport() {
     document.getElementById('saveFuelExcel').addEventListener('click', function() { saveToExcel('fuel'); });
     document.getElementById('saveLoadsExcel').addEventListener('click', function() { saveToExcel('loads'); });
     document.getElementById('saveReportExcel').addEventListener('click', function() { saveToExcel('report'); });
+
+    // Export PDF buttons
+    document.getElementById('exportFuelPDF').addEventListener('click', function() { exportPDF('fuel'); });
+    document.getElementById('exportLoadsPDF').addEventListener('click', function() { exportPDF('loads'); });
+    document.getElementById('exportReportPDF').addEventListener('click', function() { exportPDF('report'); });
+
+    // Trip Sheet exports
+    document.getElementById('exportTripCSV').addEventListener('click', function() {
+        exportCSV(filteredTrip, [
+            'driverName', 'truck', 'day', 'startTime', 'endTime', 'totalHours', 'offDutyDay', 'destination'
+        ], [
+            'Driver Name', 'Truck', 'Day', 'Start Time', 'End Time', 'Total Hours', 'Off Duty Day', 'Destination City/State'
+        ], 'tripsheet_export.csv');
+    });
+    document.getElementById('saveTripExcel').addEventListener('click', function() { saveToExcel('trip'); });
+    document.getElementById('exportTripPDF').addEventListener('click', function() { exportPDF('trip'); });
 }
 
 function exportCSV(data, fields, headers, filename) {
@@ -1370,6 +1643,445 @@ function exportCSV(data, fields, headers, filename) {
     showToast('Exported ' + data.length + ' records to ' + filename, 'success');
 }
 
+// ===== Export PDF =====
+var COMPANY_INFO = {
+    name: 'Khalsa Logistics LLC',
+    address: '9875 S 76th Street',
+    cityState: 'Franklin, WI 53132',
+    email: 'Khalsalogisticsllc@gmail.com',
+    phone: '800-811-7308'
+};
+
+function addPDFHeader(doc, title) {
+    var pageWidth = doc.internal.pageSize.getWidth();
+
+    // Company name
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(COMPANY_INFO.name, pageWidth / 2, 18, { align: 'center' });
+
+    // Address
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(COMPANY_INFO.address, pageWidth / 2, 24, { align: 'center' });
+    doc.text(COMPANY_INFO.cityState, pageWidth / 2, 29, { align: 'center' });
+
+    // Contact
+    doc.text(COMPANY_INFO.email + '  |  ' + COMPANY_INFO.phone, pageWidth / 2, 34, { align: 'center' });
+
+    // Divider line
+    doc.setDrawColor(26, 86, 219);
+    doc.setLineWidth(0.5);
+    doc.line(14, 38, pageWidth - 14, 38);
+
+    // Report title
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(26, 86, 219);
+    doc.text(title, pageWidth / 2, 45, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
+
+    // Date
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Generated: ' + new Date().toLocaleDateString(), pageWidth - 14, 45, { align: 'right' });
+
+    return 50; // Y position after header
+}
+
+function exportPDF(type) {
+    var jsPDF = window.jspdf.jsPDF;
+
+    if (type === 'fuel') {
+        if (!filteredFuel.length) { showToast('No fuel data to export', 'error'); return; }
+        var doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+        var startY = addPDFHeader(doc, 'Fuel Transaction Report');
+
+        var headers = ['Card #', 'Date', 'Time', 'Invoice', 'Unit', 'Driver', 'Odometer', 'Location', 'City', 'State', 'Fees', 'Item', 'Price', 'Qty', 'Amt', 'DB', 'Currency'];
+        var rows = filteredFuel.map(function(r) {
+            return [r.cardNum, formatDate(r.tranDate), r.tranTime, r.invoice, r.unit, r.driverName,
+                r.odometer, r.locationName, r.city, r.state, num(r.fees), r.item,
+                '$' + num(r.unitPrice), num(r.qty), '$' + num(r.amt), r.db, r.currency];
+        });
+
+        // Totals row
+        var totalQty = 0, totalAmt = 0;
+        filteredFuel.forEach(function(r) {
+            totalQty += (parseFloat(r.qty) || 0);
+            totalAmt += (parseFloat(r.amt) || 0);
+        });
+        rows.push(['', '', '', '', '', '', '', '', '', '', '', '', 'TOTAL:', totalQty.toFixed(2), '$' + totalAmt.toFixed(2), '', '']);
+
+        doc.autoTable({
+            head: [headers],
+            body: rows,
+            startY: startY,
+            styles: { fontSize: 6.5, cellPadding: 1.5 },
+            headStyles: { fillColor: [26, 86, 219], fontSize: 6.5, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 247, 250] },
+            didParseCell: function(data) {
+                if (data.row.index === rows.length - 1 && data.section === 'body') {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.fillColor = [219, 234, 254];
+                }
+            },
+            margin: { left: 8, right: 8 }
+        });
+
+        doc.save('Fuel_Report.pdf');
+        showToast('Fuel PDF exported', 'success');
+
+    } else if (type === 'loads') {
+        if (!filteredLoads.length) { showToast('No loads data to export', 'error'); return; }
+        var doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+        var startY = addPDFHeader(doc, 'Load Records Report');
+
+        var headers = ['InvoiceID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date', 'Dropoff', 'Driver', 'Truck', 'Trailer', 'Shipping ID'];
+        var rows = filteredLoads.map(function(r) {
+            return [r.invoiceId, r.loadNum, r.broker, formatDate(r.pickDate), r.pickup,
+                formatDate(r.dropDate), r.dropoff, r.driver, r.truck, r.trailer, r.shippingId];
+        });
+
+        doc.autoTable({
+            head: [headers],
+            body: rows,
+            startY: startY,
+            styles: { fontSize: 7, cellPadding: 1.5 },
+            headStyles: { fillColor: [26, 86, 219], fontSize: 7, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 247, 250] },
+            margin: { left: 8, right: 8 }
+        });
+
+        doc.save('Loads_Report.pdf');
+        showToast('Loads PDF exported', 'success');
+
+    } else if (type === 'report') {
+        var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+        var startY = addPDFHeader(doc, 'Driver Earning Report');
+        var pageWidth = doc.internal.pageSize.getWidth();
+
+        // Summary section
+        var driverName = document.getElementById('rptDriver').textContent;
+        var truck = document.getElementById('rptTruck').textContent;
+        var period = document.getElementById('rptPeriod').textContent;
+        var totalMiles = document.getElementById('rptTotalMiles').textContent;
+        var fuelCost = document.getElementById('rptFuelCost').textContent;
+        var totalLoads = document.getElementById('rptTotalLoads').textContent;
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Driver: ', 14, startY + 2);
+        doc.text('Truck: ', 14, startY + 7);
+        doc.text('Period: ', 14, startY + 12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(driverName, 32, startY + 2);
+        doc.text(truck, 32, startY + 7);
+        doc.text(period, 32, startY + 12);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Total Miles: ', pageWidth / 2, startY + 2);
+        doc.text('Fuel Cost: ', pageWidth / 2, startY + 7);
+        doc.text('Total Loads: ', pageWidth / 2, startY + 12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(totalMiles, pageWidth / 2 + 25, startY + 2);
+        doc.text(fuelCost, pageWidth / 2 + 25, startY + 7);
+        doc.text(totalLoads, pageWidth / 2 + 25, startY + 12);
+
+        var tableY = startY + 20;
+
+        // Miles Per Day table
+        if (filteredReport.length) {
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(26, 86, 219);
+            doc.text('Miles Per Day (Odometer Tracking)', 14, tableY);
+            doc.setTextColor(0, 0, 0);
+            tableY += 3;
+
+            var milesHeaders = ['Driver', 'Truck', 'Date', 'Start Odo', 'End Odo', 'Total Miles', 'Missing Miles', 'Notes'];
+            var milesRows = filteredReport.map(function(r) {
+                return [r.driverName || '', r.truck || '', formatDate(r.date), r.startOdo, r.endOdo, r.totalMiles, r.missingMiles, r.notes || ''];
+            });
+
+            var totalMilesCalc = 0, totalMissing = 0;
+            filteredReport.forEach(function(r) {
+                totalMilesCalc += (parseFloat(r.totalMiles) || 0);
+                totalMissing += (parseFloat(r.missingMiles) || 0);
+            });
+            milesRows.push(['', '', '', '', 'TOTAL:', totalMilesCalc.toFixed(0), totalMissing.toFixed(0), '']);
+
+            doc.autoTable({
+                head: [milesHeaders],
+                body: milesRows,
+                startY: tableY,
+                styles: { fontSize: 7, cellPadding: 1.5 },
+                headStyles: { fillColor: [26, 86, 219], fontSize: 7, fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [245, 247, 250] },
+                didParseCell: function(data) {
+                    if (data.row.index === milesRows.length - 1 && data.section === 'body') {
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fillColor = [219, 234, 254];
+                    }
+                },
+                margin: { left: 14, right: 14 }
+            });
+
+            tableY = doc.lastAutoTable.finalY + 10;
+        }
+
+        // Fuel Summary table
+        var fuelSummaryTbody = document.querySelectorAll('#reportFuelTable tbody tr');
+        if (fuelSummaryTbody.length > 0) {
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(26, 86, 219);
+            doc.text('Fuel Summary', 14, tableY);
+            doc.setTextColor(0, 0, 0);
+            tableY += 3;
+
+            var fuelHeaders = ['Date', 'Location', 'Item', 'Gallons', 'Amount'];
+            var fuelRows = [];
+            fuelSummaryTbody.forEach(function(tr) {
+                var cells = tr.querySelectorAll('td');
+                if (cells.length >= 5) {
+                    fuelRows.push([cells[0].textContent, cells[1].textContent, cells[2].textContent, cells[3].textContent, cells[4].textContent]);
+                }
+            });
+
+            if (fuelRows.length) {
+                doc.autoTable({
+                    head: [fuelHeaders],
+                    body: fuelRows,
+                    startY: tableY,
+                    styles: { fontSize: 7, cellPadding: 1.5 },
+                    headStyles: { fillColor: [26, 86, 219], fontSize: 7, fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: [245, 247, 250] },
+                    margin: { left: 14, right: 14 }
+                });
+                tableY = doc.lastAutoTable.finalY + 10;
+            }
+        }
+
+        // Load Summary table
+        var loadSummaryTbody = document.querySelectorAll('#reportLoadsTable tbody tr');
+        if (loadSummaryTbody.length > 0) {
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(26, 86, 219);
+            doc.text('Load Summary', 14, tableY);
+            doc.setTextColor(0, 0, 0);
+            tableY += 3;
+
+            var loadHeaders = ['InvoiceID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date', 'Dropoff', 'Driver', 'Truck', 'Trailer'];
+            var loadRows = [];
+            loadSummaryTbody.forEach(function(tr) {
+                var cells = tr.querySelectorAll('td');
+                if (cells.length >= 10) {
+                    var row = [];
+                    for (var i = 0; i < 10; i++) row.push(cells[i].textContent);
+                    loadRows.push(row);
+                }
+            });
+
+            if (loadRows.length) {
+                doc.autoTable({
+                    head: [loadHeaders],
+                    body: loadRows,
+                    startY: tableY,
+                    styles: { fontSize: 6, cellPadding: 1.5 },
+                    headStyles: { fillColor: [26, 86, 219], fontSize: 6, fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: [245, 247, 250] },
+                    margin: { left: 14, right: 14 }
+                });
+            }
+        }
+
+        doc.save('Driver_Report.pdf');
+        showToast('Report PDF exported', 'success');
+
+    } else if (type === 'trip') {
+        if (!filteredTrip.length) { showToast('No trip sheet data to export', 'error'); return; }
+
+        // Group by driver+truck for separate pages
+        var groups = {};
+        filteredTrip.forEach(function(r) {
+            var key = (r.driverName || 'Unknown') + '|' + (r.truck || '');
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(r);
+        });
+
+        var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+        var pageWidth = doc.internal.pageSize.getWidth();
+        var pageHeight = doc.internal.pageSize.getHeight();
+        var isFirst = true;
+
+        Object.keys(groups).forEach(function(key) {
+            if (!isFirst) doc.addPage();
+            isFirst = false;
+
+            var parts = key.split('|');
+            var driverName = parts[0];
+            var truckName = parts[1];
+            var records = groups[key];
+
+            var y = 14;
+
+            // Company header
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text(COMPANY_INFO.name, pageWidth / 2, y, { align: 'center' });
+            y += 5;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text(COMPANY_INFO.address + ', ' + COMPANY_INFO.cityState, pageWidth / 2, y, { align: 'center' });
+            y += 4;
+            doc.text(COMPANY_INFO.email + '  |  ' + COMPANY_INFO.phone, pageWidth / 2, y, { align: 'center' });
+            y += 8;
+
+            // Driver Name / Truck #
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.text("Driver's Name: ", 14, y);
+            doc.setFont('helvetica', 'normal');
+            doc.text(driverName, 50, y);
+            doc.line(48, y + 1, 110, y + 1);
+
+            doc.setFont('helvetica', 'bold');
+            doc.text('Truck #: ', 120, y);
+            doc.setFont('helvetica', 'normal');
+            doc.text(truckName, 142, y);
+            doc.line(140, y + 1, pageWidth - 14, y + 1);
+            y += 8;
+
+            // DOT disclaimer block
+            doc.setFontSize(7.5);
+            doc.setFont('helvetica', 'bold');
+            doc.text('DRIVERS MAY PREPARE THIS REPORT INSTEAD OF A "DRIVER\'S DAILY LOG" WHEN OPERATING WITHIN 150 AIR-', pageWidth / 2, y, { align: 'center' });
+            y += 3.5;
+            doc.text('MILES OF THE DRIVER\'S WORK REPORTING LOCATION IF THE FOLLOWING APPLIES:', pageWidth / 2, y, { align: 'center' });
+            y += 5;
+
+            // Two-column rules table
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(6.5);
+            var rulesLeft = [
+                'Drivers of CDL Vehicles:',
+                'Returns to work reporting location within 14 hours',
+                'Has 10 consecutive hours off between shifts',
+                'Does not drive after 60 or 70 hours in 7 or 8 consecutive days',
+                'Passenger Carriers',
+                'Must have 8 consecutive hrs. off duty between 14 hr. duty shift No 34 hour',
+                'restart, No 16 hour provision'
+            ];
+            var rulesRight = [
+                'WI Drivers of Non CDL Vehicles When Crossing State Lines:',
+                'Returns to the work reporting location at end of each shift',
+                'Has 10 consecutive hours off between shifts',
+                'Maximum 11 hours driving time',
+                'Does not drive after 60 or 70 hours in 7 or 8 consecutive days',
+                'Does not drive after 14th hour 5 days of 7 consecutive days',
+                'Does not drive after the 16th hour 2 days in 7 consecutive days'
+            ];
+
+            var ruleStartY = y;
+            var midX = pageWidth / 2;
+            doc.setDrawColor(0);
+            doc.setLineWidth(0.2);
+
+            // Draw rules box
+            for (var ri = 0; ri < rulesLeft.length; ri++) {
+                var ry = ruleStartY + (ri * 4);
+                if (ri === 0) {
+                    doc.setFont('helvetica', 'bold');
+                } else {
+                    doc.setFont('helvetica', 'normal');
+                }
+                doc.text(rulesLeft[ri], 15, ry + 3);
+                doc.text(rulesRight[ri], midX + 2, ry + 3);
+                doc.line(14, ry, pageWidth - 14, ry);
+                if (ri === 0) doc.line(midX, ruleStartY, midX, ruleStartY + rulesLeft.length * 4);
+            }
+            doc.line(14, ruleStartY + rulesLeft.length * 4, pageWidth - 14, ruleStartY + rulesLeft.length * 4);
+            doc.rect(14, ruleStartY, pageWidth - 28, rulesLeft.length * 4);
+
+            y = ruleStartY + rulesLeft.length * 4 + 5;
+
+            // Notices
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'bold');
+            doc.text('All hours of service records MUST Be kept for 6 months by the motor carrier', pageWidth / 2, y, { align: 'center' });
+            y += 5;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(6.5);
+            doc.text('INTERMITTENT DRIVERS: Shall complete this form for 7 days preceding any day regulated driving is performed. This includes the preceding month.', 14, y);
+            y += 5;
+            var longText = 'To be prepared monthly by each DOT-certified driver unless time record is exclusively kept on a Driver\'s Daily Log. Indicate "days off" Check box if NO driving is performed during this month and the first 7 days of the following month.';
+            var splitText = doc.splitTextToSize(longText, pageWidth - 28);
+            doc.text(splitText, 14, y);
+            y += splitText.length * 3.5 + 4;
+
+            // Trip data table
+            var tripHeaders = ['Day', 'Start Time\n"All Duty"', 'End Time\n"All Duty"', 'Total\nHours', 'Off Duty\nDay', 'Trip Destination City/State'];
+            var tripRows = records.map(function(r) {
+                return [
+                    formatDate(r.day),
+                    r.startTime || '',
+                    r.endTime || '',
+                    r.totalHours ? r.totalHours.toFixed(2) : '',
+                    r.offDutyDay ? 'X' : '',
+                    r.destination || ''
+                ];
+            });
+
+            // Pad to at least 31 rows for full month
+            while (tripRows.length < 31) {
+                tripRows.push(['', '', '', '', '', '']);
+            }
+
+            // Add total row
+            var totalHrs = 0;
+            records.forEach(function(r) { totalHrs += (parseFloat(r.totalHours) || 0); });
+            tripRows.push(['', '', 'Total:', totalHrs.toFixed(2), '', '']);
+
+            doc.autoTable({
+                head: [tripHeaders],
+                body: tripRows,
+                startY: y,
+                styles: { fontSize: 7, cellPadding: 1.2, lineColor: [0, 0, 0], lineWidth: 0.2 },
+                headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontSize: 6.5, fontStyle: 'bold', lineColor: [0, 0, 0], lineWidth: 0.2 },
+                columnStyles: {
+                    0: { cellWidth: 22 },
+                    1: { cellWidth: 22 },
+                    2: { cellWidth: 22 },
+                    3: { cellWidth: 16 },
+                    4: { cellWidth: 18 },
+                    5: { cellWidth: pageWidth - 28 - 100 }
+                },
+                theme: 'grid',
+                didParseCell: function(data) {
+                    if (data.row.index === tripRows.length - 1 && data.section === 'body') {
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                },
+                margin: { left: 14, right: 14 }
+            });
+
+            var finalY = doc.lastAutoTable.finalY + 10;
+
+            // Driver signature line
+            if (finalY < pageHeight - 20) {
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Driver Signature:', 14, finalY);
+                doc.line(50, finalY + 1, 130, finalY + 1);
+            }
+        });
+
+        doc.save('Local_TripSheet.pdf');
+        showToast('Trip Sheet PDF exported', 'success');
+    }
+}
+
 // ===== Actions =====
 function setupActions() {
     document.getElementById('clearAllData').addEventListener('click', function() {
@@ -1377,12 +2089,15 @@ function setupActions() {
         fuelData = [];
         loadsData = [];
         reportData = [];
+        tripData = [];
         filteredFuel = [];
         filteredLoads = [];
         filteredReport = [];
+        filteredTrip = [];
         localStorage.removeItem(STORAGE_KEYS.fuel);
         localStorage.removeItem(STORAGE_KEYS.loads);
         localStorage.removeItem(STORAGE_KEYS.report);
+        localStorage.removeItem(STORAGE_KEYS.trip);
         localStorage.removeItem(STORAGE_KEYS.files);
         renderAll();
         showToast('All data cleared', 'success');
@@ -1529,4 +2244,122 @@ function showToast(message, type) {
     setTimeout(function() {
         toast.remove();
     }, 4000);
+}
+
+// ===== Settings & Audit Mode =====
+var settingsData = { users: [], auditMode: false };
+
+function setupSettings() {
+    // Load settings from JSON
+    fetch('data/settings.json')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            settingsData = data;
+            renderUsersTable();
+            // Sync audit toggle with loaded settings
+            var toggle = document.getElementById('auditModeToggle');
+            // Check sessionStorage first (set at login), fallback to file
+            var sessionAudit = sessionStorage.getItem('tms_audit_mode');
+            if (sessionAudit !== null) {
+                toggle.checked = sessionAudit === 'true';
+            } else {
+                toggle.checked = settingsData.auditMode || false;
+            }
+            applyAuditMode();
+        })
+        .catch(function() {
+            settingsData = { users: [], auditMode: false };
+        });
+
+    // Audit mode toggle
+    document.getElementById('auditModeToggle').addEventListener('change', function() {
+        settingsData.auditMode = this.checked;
+        sessionStorage.setItem('tms_audit_mode', this.checked ? 'true' : 'false');
+        applyAuditMode();
+    });
+
+    // Add user button
+    document.getElementById('addUserBtn').addEventListener('click', function() {
+        settingsData.users.push({ username: '', password: '', name: '' });
+        renderUsersTable();
+    });
+
+    // Save settings to file (downloads updated settings.json)
+    document.getElementById('saveSettingsBtn').addEventListener('click', function() {
+        // Read current values from table inputs
+        syncUsersFromTable();
+        settingsData.auditMode = document.getElementById('auditModeToggle').checked;
+
+        var blob = new Blob([JSON.stringify(settingsData, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'settings.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Settings file downloaded. Replace data/settings.json and push to update.', 'success');
+    });
+}
+
+function renderUsersTable() {
+    var tbody = document.querySelector('#usersTable tbody');
+    tbody.innerHTML = '';
+    settingsData.users.forEach(function(u, i) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td><input type="text" class="settings-input" data-field="username" data-idx="' + i + '" value="' + escAttr(u.username) + '"></td>' +
+            '<td><input type="password" class="settings-input" data-field="password" data-idx="' + i + '" value="' + escAttr(u.password) + '"></td>' +
+            '<td><input type="text" class="settings-input" data-field="name" data-idx="' + i + '" value="' + escAttr(u.name) + '"></td>' +
+            '<td><button class="btn-delete" data-idx="' + i + '">Remove</button></td>';
+        tbody.appendChild(tr);
+    });
+
+    // Wire up remove buttons
+    tbody.querySelectorAll('.btn-delete').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var idx = parseInt(this.dataset.idx);
+            settingsData.users.splice(idx, 1);
+            renderUsersTable();
+        });
+    });
+
+    // Wire up input changes
+    tbody.querySelectorAll('.settings-input').forEach(function(input) {
+        input.addEventListener('change', function() {
+            var idx = parseInt(this.dataset.idx);
+            var field = this.dataset.field;
+            settingsData.users[idx][field] = this.value;
+        });
+    });
+}
+
+function syncUsersFromTable() {
+    document.querySelectorAll('#usersTable .settings-input').forEach(function(input) {
+        var idx = parseInt(input.dataset.idx);
+        var field = input.dataset.field;
+        if (settingsData.users[idx]) {
+            settingsData.users[idx][field] = input.value;
+        }
+    });
+}
+
+function applyAuditMode() {
+    var isAudit = sessionStorage.getItem('tms_audit_mode') === 'true';
+    var toggle = document.getElementById('auditModeToggle');
+    if (toggle) toggle.checked = isAudit;
+
+    var statusEl = document.getElementById('auditModeStatus');
+    if (isAudit) {
+        document.body.classList.add('audit-mode');
+        if (statusEl) {
+            statusEl.textContent = 'AUDIT MODE IS ON — All data modification features are hidden.';
+            statusEl.className = 'audit-status active';
+        }
+    } else {
+        document.body.classList.remove('audit-mode');
+        if (statusEl) {
+            statusEl.textContent = 'Audit mode is off — Normal operation.';
+            statusEl.className = 'audit-status inactive';
+        }
+    }
 }
