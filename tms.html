@@ -173,34 +173,37 @@
                         <button class="btn btn-sm btn-pdf" id="exportReportPDF">Export PDF</button>
                     </div>
                 </div>
-                <!-- Miles Per Day Table -->
+                <!-- Weekly Miles Summary Table -->
                 <div class="content-header" style="margin-top:20px;">
-                    <h3>Miles Per Day (Odometer Tracking)</h3>
+                    <h3 id="rptWeeklyTitle">Weekly Miles Service Information</h3>
                 </div>
                 <div class="table-wrapper">
                     <table class="data-table" id="reportMilesTable">
                         <thead>
                             <tr>
-                                <th>Driver Name</th>
-                                <th>Truck</th>
+                                <th>Report Name</th>
+                                <th>Driver ID</th>
                                 <th>Date</th>
-                                <th>Start Odo</th>
-                                <th>End Odo</th>
-                                <th>Total Miles</th>
+                                <th>State</th>
+                                <th class="odo-col">Start Odo</th>
+                                <th class="odo-col">End Odo</th>
+                                <th class="amount-cell">Miles</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
                         <tfoot>
                             <tr>
-                                <td colspan="5" class="text-right"><strong>Totals:</strong></td>
-                                <td id="rptMilesTotal"><strong>0</strong></td>
+                                <td colspan="4" class="text-right"><strong></strong></td>
+                                <td class="odo-col"></td>
+                                <td class="odo-col"><strong>Total</strong></td>
+                                <td id="rptMilesTotal" class="amount-cell"><strong>0.00</strong></td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
                 <!-- Total Earnings -->
                 <div class="report-summary" style="margin-top:20px;">
-                    <div class="report-card">
+                    <div class="report-card highlight">
                         <span class="report-card-label">Total Earnings (@ $0.50/mile)</span>
                         <span class="report-card-value" id="rptTotalEarnings">$0.00</span>
                     </div>

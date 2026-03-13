@@ -419,34 +419,118 @@ function renderTripTable() {
     });
 }
 
+// Helper: get the Saturday end-of-week for a given date
+function getWeekEndSaturday(d) {
+    var day = d.getDay(); // 0=Sun, 6=Sat
+    var diff = 6 - day;
+    var sat = new Date(d);
+    sat.setDate(sat.getDate() + diff);
+    return sat;
+}
+
+// Helper: group daily report records into weekly buckets (Sun 00:05 - Sat 23:55)
+function groupByWeek(records) {
+    if (!records.length) return [];
+
+    // Sort by date
+    var sorted = records.slice().sort(function(a, b) {
+        return (a.date || '').localeCompare(b.date || '');
+    });
+
+    // Determine month boundaries from the data
+    var firstDate = new Date(sorted[0].date + 'T00:00:00');
+    var lastDate = new Date(sorted[sorted.length - 1].date + 'T00:00:00');
+
+    var weeks = [];
+    var currentStart = new Date(firstDate);
+
+    while (currentStart <= lastDate) {
+        var weekEnd = getWeekEndSaturday(currentStart);
+        // Cap week end at last date of data
+        if (weekEnd > lastDate) weekEnd = new Date(lastDate);
+
+        var startStr = currentStart.toISOString().slice(0, 10);
+        var endStr = weekEnd.toISOString().slice(0, 10);
+
+        var weekRecords = sorted.filter(function(r) {
+            return r.date >= startStr && r.date <= endStr;
+        });
+
+        var trucks = new Set();
+        var drivers = new Set();
+        var totalMiles = 0;
+        var startOdoMin = Infinity;
+        var endOdoMax = 0;
+
+        weekRecords.forEach(function(r) {
+            if (r.truck) r.truck.split(',').forEach(function(t) { trucks.add(t.trim()); });
+            if (r.driverName) drivers.add(r.driverName);
+            totalMiles += (parseFloat(r.totalMiles) || 0);
+            var so = parseFloat(r.startOdo) || 0;
+            var eo = parseFloat(r.endOdo) || 0;
+            if (so > 0 && so < startOdoMin) startOdoMin = so;
+            if (eo > endOdoMax) endOdoMax = eo;
+        });
+
+        var truckList = Array.from(trucks);
+        var reportName = truckList.length ? 'Use Truck - ' + truckList.join(',') : '';
+
+        weeks.push({
+            reportName: reportName,
+            driver: Array.from(drivers).join(', '),
+            date: endStr,
+            state: 'LL',
+            startOdo: startOdoMin === Infinity ? 0 : startOdoMin,
+            endOdo: endOdoMax,
+            miles: totalMiles
+        });
+
+        // Move to next Sunday
+        var nextSun = new Date(weekEnd);
+        nextSun.setDate(nextSun.getDate() + 1);
+        currentStart = nextSun;
+    }
+
+    return weeks;
+}
+
 function renderReport() {
-    // Miles Per Day table
     var milesBody = document.querySelector('#reportMilesTable tbody');
     milesBody.innerHTML = '';
     var totalMiles = 0;
 
     if (filteredReport.length === 0) {
-        milesBody.innerHTML = '<tr><td colspan="6" class="empty-state">No odometer/miles data. Upload a report file with miles data.</td></tr>';
+        milesBody.innerHTML = '<tr><td colspan="7" class="empty-state">No miles data. Upload a report file with miles data.</td></tr>';
     } else {
-        filteredReport.forEach(function(r) {
+        // Determine driver name for the title
+        var driverNames = new Set();
+        filteredReport.forEach(function(r) { if (r.driverName) driverNames.add(r.driverName); });
+        var driverLabel = driverNames.size ? Array.from(driverNames).join(', ') : '';
+        if (driverLabel) {
+            document.getElementById('rptWeeklyTitle').textContent = 'Weekly - ' + driverLabel + ' Miles Service Information';
+        }
+
+        var weeks = groupByWeek(filteredReport);
+        weeks.forEach(function(w) {
             var tr = document.createElement('tr');
             tr.innerHTML =
-                '<td>' + esc(r.driverName || driver) + '</td>' +
-                '<td>' + esc(r.truck || truck) + '</td>' +
-                '<td>' + formatDate(r.date) + '</td>' +
-                '<td class="amount-cell">' + esc(r.startOdo) + '</td>' +
-                '<td class="amount-cell">' + esc(r.endOdo) + '</td>' +
-                '<td class="amount-cell">' + esc(r.totalMiles) + '</td>';
+                '<td>' + esc(w.reportName) + '</td>' +
+                '<td>' + esc(w.driver) + '</td>' +
+                '<td>' + formatDate(w.date) + '</td>' +
+                '<td>' + esc(w.state) + '</td>' +
+                '<td class="odo-col amount-cell">' + (w.startOdo ? w.startOdo.toLocaleString() : '') + '</td>' +
+                '<td class="odo-col amount-cell">' + (w.endOdo ? w.endOdo.toLocaleString() : '') + '</td>' +
+                '<td class="amount-cell">' + w.miles.toFixed(2) + '</td>';
             milesBody.appendChild(tr);
-            totalMiles += (parseFloat(r.totalMiles) || 0);
+            totalMiles += w.miles;
         });
     }
 
-    document.getElementById('rptMilesTotal').innerHTML = '<strong>' + totalMiles.toLocaleString() + '</strong>';
+    document.getElementById('rptMilesTotal').innerHTML = '<strong>' + totalMiles.toFixed(2) + '</strong>';
 
-    // Total Earnings at $0.50 per mile
+    // Total Earnings at $0.50/mile
     var totalEarnings = totalMiles * 0.50;
-    document.getElementById('rptTotalEarnings').textContent = '$' + totalEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    document.getElementById('rptTotalEarnings').textContent = '$' + totalEarnings.toFixed(2);
 }
 
 function renderStoredFiles() {
@@ -752,19 +836,17 @@ function saveToExcel(type) {
         XLSX.utils.book_append_sheet(wb, ws, 'Loads');
         filename = 'Loads.xlsx';
     } else if (type === 'report') {
-        var reportHeaders = ['Driver Name', 'Truck', 'Date', 'Start Odo', 'End Odo', 'Total Miles'];
+        var weeks = groupByWeek(filteredReport);
+        var reportHeaders = ['Report Name', 'Driver ID', 'Date', 'State', 'Miles'];
         var reportRows = [reportHeaders];
-        reportData.forEach(function(r) {
-            reportRows.push([
-                r.driverName || '', r.truck || '', r.date, r.startOdo, r.endOdo,
-                r.totalMiles
-            ]);
+        weeks.forEach(function(w) {
+            reportRows.push([w.reportName, w.driver, w.date, w.state, w.miles]);
         });
         ws = XLSX.utils.aoa_to_sheet(reportRows);
-        ws['!cols'] = reportHeaders.map(function() { return { wch: 14 }; });
+        ws['!cols'] = [{ wch: 24 }, { wch: 14 }, { wch: 12 }, { wch: 8 }, { wch: 12 }];
         wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Report');
-        filename = 'Report.xlsx';
+        XLSX.utils.book_append_sheet(wb, ws, 'Weekly Miles');
+        filename = 'Weekly_Miles_Report.xlsx';
     } else if (type === 'trip') {
         var tripHeaders = ['Driver Name', 'Truck', 'Day', 'Start Time', 'End Time', 'Total Hours', 'Off Duty Day', 'Destination City/State'];
         var tripRows = [tripHeaders];
@@ -1464,11 +1546,12 @@ function setupExport() {
     });
 
     document.getElementById('exportReportCSV').addEventListener('click', function() {
-        exportCSV(filteredReport, [
-            'driverName', 'truck', 'date', 'startOdo', 'endOdo', 'totalMiles'
+        var weeks = groupByWeek(filteredReport);
+        exportCSV(weeks, [
+            'reportName', 'driver', 'date', 'state', 'miles'
         ], [
-            'Driver Name', 'Truck', 'Date', 'Start Odometer', 'End Odometer', 'Total Miles'
-        ], 'report_export.csv');
+            'Report Name', 'Driver ID', 'Date', 'State', 'Miles'
+        ], 'weekly_miles_report.csv');
     });
 
     // Save to Excel buttons
@@ -1637,38 +1720,36 @@ function exportPDF(type) {
 
     } else if (type === 'report') {
         var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-        var startY = addPDFHeader(doc, 'Earning Report');
         var pageWidth = doc.internal.pageSize.getWidth();
+
+        // Title from table header
+        var titleText = document.getElementById('rptWeeklyTitle').textContent || 'Weekly Miles Service Information';
+        var startY = addPDFHeader(doc, titleText);
 
         var tableY = startY + 5;
 
-        // Miles Per Day table
-        if (filteredReport.length) {
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(26, 86, 219);
-            doc.text('Miles Per Day (Odometer Tracking)', 14, tableY);
-            doc.setTextColor(0, 0, 0);
-            tableY += 3;
-
-            var milesHeaders = ['Driver', 'Truck', 'Date', 'Start Odo', 'End Odo', 'Total Miles'];
-            var milesRows = filteredReport.map(function(r) {
-                return [r.driverName || '', r.truck || '', formatDate(r.date), r.startOdo, r.endOdo, r.totalMiles];
+        // Weekly Miles table (NO odometer columns in PDF)
+        var weeks = groupByWeek(filteredReport);
+        if (weeks.length) {
+            var milesHeaders = ['Report Name', 'Driver ID', 'Date', 'State', 'Miles'];
+            var milesRows = weeks.map(function(w) {
+                return [w.reportName, w.driver, formatDate(w.date), w.state, w.miles.toFixed(2)];
             });
 
             var totalMilesCalc = 0;
-            filteredReport.forEach(function(r) {
-                totalMilesCalc += (parseFloat(r.totalMiles) || 0);
-            });
-            milesRows.push(['', '', '', '', 'TOTAL:', totalMilesCalc.toFixed(0)]);
+            weeks.forEach(function(w) { totalMilesCalc += w.miles; });
+            milesRows.push(['', '', '', 'Total', totalMilesCalc.toFixed(2)]);
 
             doc.autoTable({
                 head: [milesHeaders],
                 body: milesRows,
                 startY: tableY,
-                styles: { fontSize: 7, cellPadding: 1.5 },
-                headStyles: { fillColor: [26, 86, 219], fontSize: 7, fontStyle: 'bold' },
+                styles: { fontSize: 8, cellPadding: 2 },
+                headStyles: { fillColor: [26, 86, 219], fontSize: 8, fontStyle: 'bold' },
                 alternateRowStyles: { fillColor: [245, 247, 250] },
+                columnStyles: {
+                    4: { halign: 'right' }
+                },
                 didParseCell: function(data) {
                     if (data.row.index === milesRows.length - 1 && data.section === 'body') {
                         data.cell.styles.fontStyle = 'bold';
@@ -1679,15 +1760,15 @@ function exportPDF(type) {
             });
 
             tableY = doc.lastAutoTable.finalY + 10;
-        }
 
-        // Total Earnings
-        var totalEarnings = (totalMilesCalc * 0.50);
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(26, 86, 219);
-        doc.text('Total Earnings (@ $0.50/mile): $' + totalEarnings.toFixed(2), 14, tableY);
-        doc.setTextColor(0, 0, 0);
+            // Total Earnings
+            var totalEarnings = totalMilesCalc * 0.50;
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(26, 86, 219);
+            doc.text('Total Earnings (@ $0.50/mile): $' + totalEarnings.toFixed(2), 14, tableY);
+            doc.setTextColor(0, 0, 0);
+        }
 
         doc.save('Driver_Earning_Report.pdf');
         showToast('Report PDF exported', 'success');

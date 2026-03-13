@@ -986,6 +986,11 @@ body.audit-mode #loadsTable td:nth-child(3) {
     display: none !important;
 }
 
+/* Hide odometer columns (Start Odo, End Odo) in report during audit mode */
+body.audit-mode .odo-col {
+    display: none !important;
+}
+
 .settings-input {
     width: 100%;
     padding: 6px 8px;
