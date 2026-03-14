@@ -2180,6 +2180,73 @@ function setupSettings() {
         applyAuditMode();
     });
 
+    // Reload from Excel files button
+    document.getElementById('reloadFromExcelBtn').addEventListener('click', function() {
+        if (!confirm('This will replace ALL current data (Fuel, Loads, Report, Trip Sheet) with data from the Excel files in the data/ folder. Continue?')) return;
+        var btn = this;
+        var statusEl = document.getElementById('reloadStatus');
+        btn.disabled = true;
+        statusEl.textContent = 'Loading...';
+
+        // Clear existing data
+        fuelData = []; loadsData = []; reportData = []; tripData = [];
+        filteredFuel = []; filteredLoads = []; filteredReport = []; filteredTrip = [];
+        localStorage.removeItem(STORAGE_KEYS.fuel);
+        localStorage.removeItem(STORAGE_KEYS.loads);
+        localStorage.removeItem(STORAGE_KEYS.report);
+        localStorage.removeItem(STORAGE_KEYS.trip);
+        localStorage.removeItem(STORAGE_KEYS.files);
+
+        // Re-load from Excel files
+        var dataFiles = [
+            { url: 'data/Fuel.xlsx', type: 'fuel' },
+            { url: 'data/Loads.xlsx', type: 'loads' },
+            { url: 'data/Report.xlsx', type: 'report' },
+            { url: 'data/LocalTripsheet.xlsx', type: 'trip' }
+        ];
+        var loaded = 0;
+        var successCount = 0;
+
+        dataFiles.forEach(function(fileInfo) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', fileInfo.url + '?t=' + Date.now(), true);
+            xhr.responseType = 'arraybuffer';
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        var data = new Uint8Array(xhr.response);
+                        var workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                        if (fileInfo.type === 'fuel') parseFuelWorkbook(workbook, fileInfo.url);
+                        else if (fileInfo.type === 'loads') parseLoadsWorkbook(workbook, fileInfo.url);
+                        else if (fileInfo.type === 'report') parseReportWorkbook(workbook, fileInfo.url);
+                        else if (fileInfo.type === 'trip') parseTripWorkbook(workbook, fileInfo.url);
+                        successCount++;
+                    } catch (err) {
+                        console.warn('Could not parse ' + fileInfo.url + ':', err.message);
+                    }
+                }
+                loaded++;
+                if (loaded === dataFiles.length) {
+                    renderAll();
+                    populateFilterDropdowns();
+                    btn.disabled = false;
+                    statusEl.textContent = successCount + ' file(s) loaded successfully.';
+                    showToast('Data reloaded from Excel files (' + successCount + ' files)', 'success');
+                    setTimeout(function() { statusEl.textContent = ''; }, 5000);
+                }
+            };
+            xhr.onerror = function() {
+                loaded++;
+                if (loaded === dataFiles.length) {
+                    renderAll();
+                    btn.disabled = false;
+                    statusEl.textContent = successCount + ' file(s) loaded.';
+                }
+            };
+            xhr.send();
+        });
+    });
+
     // Add user button
     document.getElementById('addUserBtn').addEventListener('click', function() {
         settingsData.users.push({ username: '', password: '', name: '' });

@@ -341,6 +341,20 @@
                     <div id="auditModeStatus" class="audit-status"></div>
                 </div>
 
+                <!-- Data Management -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <div>
+                            <h3>Data Management</h3>
+                            <p class="settings-desc">Reload data from the Excel files in the <code>data/</code> folder. This will replace all current data (Fuel, Loads, Report, Trip Sheet) with whatever is in the Excel files.</p>
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center;">
+                        <button class="btn btn-sm btn-primary" id="reloadFromExcelBtn">&#128260; Reload from Excel Files</button>
+                        <span id="reloadStatus" style="font-size: 13px; color: var(--text-light);"></span>
+                    </div>
+                </div>
+
                 <!-- Manage Credentials -->
                 <div class="settings-card">
                     <h3>Manage Users</h3>
