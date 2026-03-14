@@ -461,8 +461,8 @@ function renderTripTable() {
                 '<td>' + esc(r.driverName) + '</td>' +
                 '<td>' + esc(r.truck) + '</td>' +
                 '<td>' + formatDate(r.day) + '</td>' +
-                '<td>' + esc(r.startTime) + '</td>' +
-                '<td>' + esc(r.endTime) + '</td>' +
+                '<td>' + esc(formatTime(r.startTime)) + '</td>' +
+                '<td>' + esc(formatTime(r.endTime)) + '</td>' +
                 '<td class="amount-cell">' + num(r.totalHours) + '</td>' +
                 '<td>' + (r.offDutyDay ? 'Yes' : '') + '</td>' +
                 '<td>' + esc(r.destination) + '</td>' +
@@ -842,8 +842,8 @@ function openEditTripModal(idx) {
             '<div class="form-group"><label>Destination City/State</label><input type="text" id="mTripDest" value="' + escAttr(r.destination) + '"></div>' +
         '</div>' +
         '<div class="form-row">' +
-            '<div class="form-group"><label>Start Time</label><input type="time" id="mTripStart" value="' + escAttr(r.startTime) + '"></div>' +
-            '<div class="form-group"><label>End Time</label><input type="time" id="mTripEnd" value="' + escAttr(r.endTime) + '"></div>' +
+            '<div class="form-group"><label>Start Time</label><input type="time" id="mTripStart" value="' + escAttr(formatTime(r.startTime)) + '"></div>' +
+            '<div class="form-group"><label>End Time</label><input type="time" id="mTripEnd" value="' + escAttr(formatTime(r.endTime)) + '"></div>' +
         '</div>' +
         '<div class="form-row">' +
             '<div class="form-group"><label>Total Hours</label><input type="number" step="0.01" id="mTripHours" value="' + escAttr(r.totalHours) + '"></div>' +
@@ -962,7 +962,7 @@ function saveToExcel(type) {
         var tripRows = [tripHeaders];
         tripData.forEach(function(r) {
             tripRows.push([
-                r.driverName || '', r.truck || '', r.day, r.startTime, r.endTime,
+                r.driverName || '', r.truck || '', r.day, formatTime(r.startTime), formatTime(r.endTime),
                 r.totalHours, r.offDutyDay ? 'Yes' : '', r.destination || ''
             ]);
         });
@@ -2309,8 +2309,8 @@ function exportPDF(type) {
             var tripRows = records.map(function(r) {
                 return [
                     formatDate(r.day),
-                    r.startTime || '',
-                    r.endTime || '',
+                    formatTime(r.startTime) || '',
+                    formatTime(r.endTime) || '',
                     r.totalHours ? r.totalHours.toFixed(2) : '',
                     r.offDutyDay ? 'X' : '',
                     r.destination || ''
