@@ -409,6 +409,41 @@ function renderLoadsTable() {
             editRecord(this.dataset.type, parseInt(this.dataset.idx));
         });
     });
+
+    updateLoadReportHeader();
+}
+
+function updateLoadReportHeader() {
+    var data = filteredLoads.length ? filteredLoads : loadsData;
+
+    // Compute date range
+    var minDate = null, maxDate = null;
+    data.forEach(function(r) {
+        var dates = [r.pickDate, r.dropDate];
+        dates.forEach(function(dt) {
+            if (!dt) return;
+            var d = new Date(dt);
+            if (isNaN(d.getTime())) return;
+            if (!minDate || d < minDate) minDate = d;
+            if (!maxDate || d > maxDate) maxDate = d;
+        });
+    });
+    var fmtShort = function(d) {
+        if (!d) return '--';
+        return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+    };
+    var dateStr = minDate && maxDate ? fmtShort(minDate) + ' - ' + fmtShort(maxDate) : '--';
+    document.getElementById('loadMetaDate').textContent = dateStr;
+
+    // Unique drivers
+    var drivers = {};
+    var trucks = {};
+    data.forEach(function(r) {
+        if (r.driver) drivers[r.driver] = true;
+        if (r.truck) trucks[r.truck] = true;
+    });
+    document.getElementById('loadMetaDrivers').textContent = Object.keys(drivers).join(', ') || '--';
+    document.getElementById('loadMetaTrucks').textContent = Object.keys(trucks).join(', ') || '--';
 }
 
 function renderTripTable() {
@@ -1836,20 +1871,98 @@ function exportPDF(type) {
     } else if (type === 'loads') {
         if (!filteredLoads.length) { showToast('No loads data to export', 'error'); return; }
         var doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
-        var startY = addPDFHeader(doc, 'Load Records Report');
+        var pageWidth = doc.internal.pageSize.getWidth();
 
-        var headers = ['InvoiceID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date', 'Dropoff', 'Driver', 'Truck', 'Trailer'];
+        // --- Custom header: logo + company left, meta right ---
+        var y = 12;
+        // Logo
+        if (window._pdfLogoData) {
+            doc.addImage(window._pdfLogoData, 'PNG', 10, 8, 20, 20);
+        }
+        // Company info (left side)
+        var leftX = 34;
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.text('KHALSA LOGISTICS LLC', leftX, y);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text(COMPANY_INFO.address, leftX, y + 5);
+        doc.text(COMPANY_INFO.cityState, leftX, y + 9);
+        doc.text(COMPANY_INFO.email + '  |  ' + COMPANY_INFO.phone, leftX, y + 13);
+
+        // Meta info (right side)
+        var rightX = pageWidth - 10;
+        // Compute date range
+        var minDate = null, maxDate = null;
+        filteredLoads.forEach(function(r) {
+            [r.pickDate, r.dropDate].forEach(function(dt) {
+                if (!dt) return;
+                var d = new Date(dt);
+                if (isNaN(d.getTime())) return;
+                if (!minDate || d < minDate) minDate = d;
+                if (!maxDate || d > maxDate) maxDate = d;
+            });
+        });
+        var fmtShort = function(d) {
+            if (!d) return '--';
+            return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+        };
+
+        var drivers = {}, trucks = {};
+        filteredLoads.forEach(function(r) {
+            if (r.driver) drivers[r.driver] = true;
+            if (r.truck) trucks[r.truck] = true;
+        });
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Date: ', rightX - 60, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(fmtShort(minDate) + ' - ' + fmtShort(maxDate), rightX, y, { align: 'right' });
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Carrier #: ', rightX - 60, y + 5);
+        doc.setFont('helvetica', 'normal');
+        doc.text('1429841', rightX, y + 5, { align: 'right' });
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Driver(s): ', rightX - 60, y + 10);
+        doc.setFont('helvetica', 'normal');
+        var driverStr = Object.keys(drivers).join(', ') || '--';
+        doc.text(driverStr, rightX, y + 10, { align: 'right' });
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Truck(s): ', rightX - 60, y + 15);
+        doc.setFont('helvetica', 'normal');
+        var truckStr = Object.keys(trucks).join(', ') || '--';
+        doc.text(truckStr, rightX, y + 15, { align: 'right' });
+
+        // Divider
+        doc.setDrawColor(26, 86, 219);
+        doc.setLineWidth(0.5);
+        doc.line(8, 32, pageWidth - 8, 32);
+
+        // Title
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(26, 86, 219);
+        doc.text('Load Report', pageWidth / 2, 38, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+
+        var startY = 42;
+
+        // Only show required columns
+        var headers = ['Pick Date', 'Pickup', 'Drop Date', 'Dropoff', 'Driver', 'TruckName', 'Trailer'];
         var rows = filteredLoads.map(function(r) {
-            return [r.invoiceId, r.loadNum, r.broker, formatDate(r.pickDate), r.pickup,
-                formatDate(r.dropDate), r.dropoff, r.driver, r.truck, r.trailer];
+            return [formatDate(r.pickDate), r.pickup, formatDate(r.dropDate), r.dropoff, r.driver, r.truck, r.trailer];
         });
 
         doc.autoTable({
             head: [headers],
             body: rows,
             startY: startY,
-            styles: { fontSize: 7, cellPadding: 1.5 },
-            headStyles: { fillColor: [26, 86, 219], fontSize: 7, fontStyle: 'bold' },
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [26, 86, 219], fontSize: 8, fontStyle: 'bold' },
             alternateRowStyles: { fillColor: [245, 247, 250] },
             margin: { left: 8, right: 8 }
         });
