@@ -595,9 +595,52 @@ function renderReport() {
 
     document.getElementById('rptMilesTotal').innerHTML = '<strong>' + totalMiles.toFixed(2) + '</strong>';
 
-    // Total Earnings at $0.50/mile
-    var totalEarnings = totalMiles * 0.50;
-    document.getElementById('rptTotalEarnings').textContent = '$' + totalEarnings.toFixed(2);
+    // Total Earnings at $0.55/mile
+    var driverCent = 0.55;
+    var totalEarnings = totalMiles * driverCent;
+
+    // Populate earning report header fields
+    var data = filteredReport.length ? filteredReport : reportData;
+    var driverNames = new Set();
+    data.forEach(function(r) { if (r.driverName) driverNames.add(r.driverName); });
+    var driverLabel = driverNames.size ? Array.from(driverNames).join(', ') : '--';
+
+    // Date range
+    var minDate = null, maxDate = null;
+    data.forEach(function(r) {
+        if (!r.date) return;
+        var d = new Date(r.date);
+        if (isNaN(d.getTime())) return;
+        if (!minDate || d < minDate) minDate = d;
+        if (!maxDate || d > maxDate) maxDate = d;
+    });
+    var fmtShort = function(d) {
+        if (!d) return '--';
+        return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+    };
+
+    document.getElementById('earnMetaDriver').textContent = driverLabel;
+    document.getElementById('earnMetaDateRange').textContent =
+        (minDate && maxDate) ? (fmtPad(minDate) + '-' + fmtPad(maxDate)) : '--';
+    document.getElementById('earnMetaTotal').textContent = '$' + totalEarnings.toFixed(2);
+
+    // Owner table
+    document.getElementById('earnOwnerDriver').textContent = driverLabel;
+    document.getElementById('earnOwnerCent').textContent = '$' + driverCent.toFixed(2);
+    document.getElementById('earnOwnerPayPeriod').textContent =
+        (minDate && maxDate) ? (fmtShort(minDate) + ' - ' + fmtShort(maxDate)) : '--';
+    document.getElementById('earnOwnerPayDate').textContent = maxDate ? fmtShort(maxDate) : '--';
+
+    // Weekly summary
+    document.getElementById('earnWeeklyGross').textContent = totalEarnings.toFixed(2);
+    document.getElementById('earnWeeklyTotal').textContent = totalEarnings.toFixed(2);
+}
+
+function fmtPad(d) {
+    if (!d) return '--';
+    var mm = ('0' + (d.getMonth() + 1)).slice(-2);
+    var dd = ('0' + d.getDate()).slice(-2);
+    return mm + '/' + dd + '/' + d.getFullYear();
 }
 
 function renderStoredFiles() {
@@ -1973,23 +2016,118 @@ function exportPDF(type) {
     } else if (type === 'report') {
         var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
         var pageWidth = doc.internal.pageSize.getWidth();
+        var driverCent = 0.55;
 
-        // Title from table header
-        var titleText = document.getElementById('rptWeeklyTitle').textContent || 'Weekly Miles Service Information';
-        var startY = addPDFHeader(doc, titleText);
+        // --- Compute data ---
+        var data = filteredReport.length ? filteredReport : reportData;
+        var driverNames = new Set();
+        data.forEach(function(r) { if (r.driverName) driverNames.add(r.driverName); });
+        var driverLabel = driverNames.size ? Array.from(driverNames).join(', ') : '--';
 
-        var tableY = startY + 5;
+        var minDate = null, maxDate = null;
+        data.forEach(function(r) {
+            if (!r.date) return;
+            var d = new Date(r.date);
+            if (isNaN(d.getTime())) return;
+            if (!minDate || d < minDate) minDate = d;
+            if (!maxDate || d > maxDate) maxDate = d;
+        });
 
-        // Weekly Miles table (NO odometer columns in PDF)
-        var weeks = groupByWeek(filteredReport);
+        var weeks = groupByWeek(filteredReport.length ? filteredReport : reportData);
+        var totalMilesCalc = 0;
+        weeks.forEach(function(w) { totalMilesCalc += w.miles; });
+        var totalEarnings = totalMilesCalc * driverCent;
+
+        // --- "Earning Report" title ---
+        var y = 14;
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(34, 197, 94);
+        doc.text('Earning Report', pageWidth / 2, y, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+
+        // --- Header: Logo + company left, driver meta right ---
+        y = 28;
+        if (window._pdfLogoData) {
+            doc.addImage(window._pdfLogoData, 'PNG', 14, y - 6, 16, 16);
+        }
+        var leftX = 34;
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Khalsa Logistics LLC', leftX, y);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('3039 W 6 1/2 MILE RD, SUITE 100', leftX, y + 5);
+        doc.text('CALEDONIA, WI 53108', leftX, y + 9);
+
+        // Right side
+        var rightX = pageWidth - 14;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(driverLabel + ' | Unsafe Point: 0', rightX, y, { align: 'right' });
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Date: ' + fmtPad(minDate) + '-' + fmtPad(maxDate), rightX, y + 5, { align: 'right' });
+        doc.setFontSize(10);
+        doc.setTextColor(34, 197, 94);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Total: $' + totalEarnings.toFixed(2), rightX, y + 11, { align: 'right' });
+        doc.setTextColor(0, 0, 0);
+
+        // --- Owner Opt table ---
+        y = 48;
+        doc.autoTable({
+            head: [['Owner Opt', 'Driver', 'SSN', 'Driver Cent', 'Pay Period', 'Pay Date']],
+            body: [[
+                'Khalsa Logistics LLC',
+                driverLabel,
+                'XXX-XX-XXXX',
+                '$' + driverCent.toFixed(2),
+                fmtPad(minDate) + ' - ' + fmtPad(maxDate),
+                fmtPad(maxDate)
+            ]],
+            startY: y,
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [50, 50, 50], fontSize: 8, fontStyle: 'bold' },
+            margin: { left: 14, right: 14 }
+        });
+
+        var tableY = doc.lastAutoTable.finalY + 4;
+
+        // --- Weekly Report summary ---
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Weekly Report', pageWidth / 2 + 10, tableY + 4);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text('Weekly Gross', pageWidth / 2 + 10, tableY + 10);
+        doc.text('$    ' + totalEarnings.toFixed(2), pageWidth - 14, tableY + 10, { align: 'right' });
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.3);
+        doc.line(pageWidth / 2 + 10, tableY + 12, pageWidth - 14, tableY + 12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(34, 197, 94);
+        doc.text('Weekly Report', pageWidth / 2 + 10, tableY + 17);
+        doc.text('$    ' + totalEarnings.toFixed(2), pageWidth - 14, tableY + 17, { align: 'right' });
+        doc.setTextColor(0, 0, 0);
+
+        tableY = tableY + 24;
+
+        // --- Weekly Miles table title ---
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(34, 197, 94);
+        var titleText = 'Weekly - ' + driverLabel + ' Miles Service Information';
+        doc.text(titleText, pageWidth / 2, tableY, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        tableY += 4;
+
+        // --- Weekly Miles table ---
         if (weeks.length) {
             var milesHeaders = ['Report Name', 'Driver ID', 'Date', 'State', 'Miles'];
             var milesRows = weeks.map(function(w) {
                 return [w.reportName, w.driver, formatDate(w.date), w.state, w.miles.toFixed(2)];
             });
-
-            var totalMilesCalc = 0;
-            weeks.forEach(function(w) { totalMilesCalc += w.miles; });
             milesRows.push(['', '', '', 'Total', totalMilesCalc.toFixed(2)]);
 
             doc.autoTable({
@@ -1997,11 +2135,9 @@ function exportPDF(type) {
                 body: milesRows,
                 startY: tableY,
                 styles: { fontSize: 8, cellPadding: 2 },
-                headStyles: { fillColor: [26, 86, 219], fontSize: 8, fontStyle: 'bold' },
+                headStyles: { fillColor: [50, 50, 50], fontSize: 8, fontStyle: 'bold' },
                 alternateRowStyles: { fillColor: [245, 247, 250] },
-                columnStyles: {
-                    4: { halign: 'right' }
-                },
+                columnStyles: { 4: { halign: 'right' } },
                 didParseCell: function(data) {
                     if (data.row.index === milesRows.length - 1 && data.section === 'body') {
                         data.cell.styles.fontStyle = 'bold';
@@ -2011,16 +2147,35 @@ function exportPDF(type) {
                 margin: { left: 14, right: 14 }
             });
 
-            tableY = doc.lastAutoTable.finalY + 10;
-
-            // Total Earnings
-            var totalEarnings = totalMilesCalc * 0.50;
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(26, 86, 219);
-            doc.text('Total Earnings (@ $0.50/mile): $' + totalEarnings.toFixed(2), 14, tableY);
-            doc.setTextColor(0, 0, 0);
+            tableY = doc.lastAutoTable.finalY + 8;
         }
+
+        // --- Driver Behavior Information ---
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(34, 197, 94);
+        doc.text('Driver Behavior Information', pageWidth / 2, tableY, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        tableY += 4;
+
+        doc.autoTable({
+            head: [['Type', 'Driver', 'Date', 'Points', 'Notes']],
+            body: [['', '', '', '', '']],
+            startY: tableY,
+            styles: { fontSize: 8, cellPadding: 2, minCellHeight: 8 },
+            headStyles: { fillColor: [50, 50, 50], fontSize: 8, fontStyle: 'bold' },
+            foot: [['', '', 'Total', '0', '']],
+            footStyles: { fillColor: [219, 234, 254], fontStyle: 'bold', textColor: [0, 0, 0] },
+            margin: { left: 14, right: 14 }
+        });
+
+        tableY = doc.lastAutoTable.finalY + 12;
+
+        // --- Footer ---
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('If you have any question, please feel free to reach out to 1-800-811-7308 or email at Khalsalogisticsllc@gmail.com.', 14, tableY);
+        doc.text('copyright \u00A9 2025 Khalsa Logistics LLC.', 14, tableY + 4);
 
         doc.save('Driver_Earning_Report.pdf');
         showToast('Report PDF exported', 'success');
@@ -2337,29 +2492,32 @@ function formatExcelTime(val) {
 }
 
 function formatTime(val) {
-    if (!val) return '';
-    // If it's a Date object (from Excel time-only cells), extract just the time
+    if (!val && val !== 0) return '';
+    // If it's a Date object (from Excel time-only cells), extract HH:mm
     if (val instanceof Date) {
         var h = val.getHours();
         var m = val.getMinutes();
-        var ampm = h >= 12 ? 'PM' : 'AM';
-        h = h % 12;
-        if (h === 0) h = 12;
-        return h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+        return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    }
+    // Excel decimal time (0.0 to 0.999)
+    if (typeof val === 'number' && val < 1) {
+        var totalMinutes = Math.round(val * 24 * 60);
+        var hours = Math.floor(totalMinutes / 60);
+        var minutes = totalMinutes % 60;
+        return String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
     }
     var s = String(val);
-    // If it looks like a full Date string (e.g. "Sun Dec 31 1899 11:26:35 ..."), extract the time
+    // If it looks like a full Date string (e.g. "Sun Dec 31 1899 11:26:35 ..."), extract HH:mm
     var match = s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
     if (match) {
         var hr = parseInt(match[1]);
         var min = match[2];
         var ap = match[4];
-        if (!ap) {
-            ap = hr >= 12 ? 'PM' : 'AM';
-            hr = hr % 12;
-            if (hr === 0) hr = 12;
+        if (ap) {
+            if (ap.toUpperCase() === 'PM' && hr !== 12) hr += 12;
+            if (ap.toUpperCase() === 'AM' && hr === 12) hr = 0;
         }
-        return hr + ':' + min + ' ' + ap.toUpperCase();
+        return String(hr).padStart(2, '0') + ':' + min;
     }
     return s;
 }

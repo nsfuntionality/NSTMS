@@ -481,6 +481,90 @@ body {
     font-weight: 700;
 }
 
+/* ===== Earning Report Header ===== */
+.earn-report-header {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+}
+.earn-header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.earn-header-logo {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+}
+.earn-header-company h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+.earn-header-company p {
+    font-size: 12px;
+    color: var(--text-light);
+    margin: 0;
+    line-height: 1.5;
+}
+.earn-header-right {
+    text-align: right;
+    font-size: 13px;
+}
+.earn-header-right p {
+    margin: 2px 0;
+}
+.earn-driver-name {
+    font-size: 15px;
+    font-weight: 600;
+}
+.earn-total-highlight {
+    color: #22c55e;
+    font-size: 15px;
+    font-weight: 700;
+}
+.earn-weekly-summary {
+    margin: 16px 0;
+    display: flex;
+    justify-content: flex-end;
+}
+.earn-summary-table {
+    border-collapse: collapse;
+    min-width: 280px;
+}
+.earn-summary-table td {
+    padding: 4px 12px;
+    font-size: 13px;
+}
+.earn-summary-heading {
+    font-weight: 700;
+    font-size: 14px;
+    padding-bottom: 6px;
+}
+.earn-summary-total td {
+    border-top: 2px solid var(--border);
+    color: #22c55e;
+}
+.earn-report-footer {
+    margin-top: 30px;
+    padding: 16px 24px;
+    background: #f9fafb;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--text-light);
+}
+.earn-report-footer p {
+    margin: 2px 0;
+}
+
 /* ===== Transaction Report Header ===== */
 .txn-report-header {
     background: #fff;

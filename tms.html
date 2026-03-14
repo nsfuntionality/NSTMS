@@ -212,9 +212,70 @@
                         <button class="btn btn-sm btn-pdf" id="exportReportPDF">Export PDF</button>
                     </div>
                 </div>
+
+                <!-- Earning Report Header: Logo + Company left, Driver meta right -->
+                <div class="earn-report-header" id="earnReportHeader">
+                    <div class="earn-header-left">
+                        <img src="data/Khalsa_Logo (1).png" alt="Logo" class="earn-header-logo">
+                        <div class="earn-header-company">
+                            <h3>Khalsa Logistics LLC</h3>
+                            <p>3039 W 6 1/2 MILE RD, SUITE 100</p>
+                            <p>CALEDONIA, WI 53108</p>
+                        </div>
+                    </div>
+                    <div class="earn-header-right">
+                        <p class="earn-driver-name"><span id="earnMetaDriver">--</span> | Unsafe Point: 0</p>
+                        <p>Date: <span id="earnMetaDateRange">--</span></p>
+                        <p class="earn-total-highlight">Total: <span id="earnMetaTotal">$0.00</span></p>
+                    </div>
+                </div>
+
+                <!-- Owner Opt / Driver Info Table -->
+                <div class="table-wrapper" style="margin-top: 16px;">
+                    <table class="data-table" id="earnOwnerTable">
+                        <thead>
+                            <tr>
+                                <th>Owner Opt</th>
+                                <th>Driver</th>
+                                <th>SSN</th>
+                                <th>Driver Cent</th>
+                                <th>Pay Period</th>
+                                <th>Pay Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Khalsa Logistics LLC</td>
+                                <td id="earnOwnerDriver">--</td>
+                                <td>XXX-XX-XXXX</td>
+                                <td id="earnOwnerCent">$0.55</td>
+                                <td id="earnOwnerPayPeriod">--</td>
+                                <td id="earnOwnerPayDate">--</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Weekly Report Summary -->
+                <div class="earn-weekly-summary" id="earnWeeklySummary">
+                    <table class="earn-summary-table">
+                        <tr><td colspan="3" class="earn-summary-heading">Weekly Report</td></tr>
+                        <tr>
+                            <td>Weekly Gross</td>
+                            <td>$</td>
+                            <td class="amount-cell" id="earnWeeklyGross">0.00</td>
+                        </tr>
+                        <tr class="earn-summary-total">
+                            <td><strong>Weekly Report</strong></td>
+                            <td><strong>$</strong></td>
+                            <td class="amount-cell"><strong id="earnWeeklyTotal">0.00</strong></td>
+                        </tr>
+                    </table>
+                </div>
+
                 <!-- Weekly Miles Summary Table -->
                 <div class="content-header" style="margin-top:20px;">
-                    <h3 id="rptWeeklyTitle">Weekly Miles Service Information</h3>
+                    <h3 id="rptWeeklyTitle" style="color: #22c55e; text-align: center; width: 100%;">Weekly Miles Service Information</h3>
                 </div>
                 <div class="table-wrapper">
                     <table class="data-table" id="reportMilesTable">
@@ -240,12 +301,40 @@
                         </tfoot>
                     </table>
                 </div>
-                <!-- Total Earnings -->
-                <div class="report-summary" style="margin-top:20px;">
-                    <div class="report-card highlight">
-                        <span class="report-card-label">Total Earnings (@ $0.50/mile)</span>
-                        <span class="report-card-value" id="rptTotalEarnings">$0.00</span>
-                    </div>
+
+                <!-- Driver Behavior Information -->
+                <div class="content-header" style="margin-top:20px;">
+                    <h3 style="color: #22c55e; text-align: center; width: 100%;">Driver Behavior Information</h3>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table" id="driverBehaviorTable">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Driver</th>
+                                <th>Date</th>
+                                <th>Points</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" class="empty-state">No driver behavior records.</td></tr>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="2"></td>
+                                <td class="text-right"><strong>Total</strong></td>
+                                <td><strong>0</strong></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Footer -->
+                <div class="earn-report-footer">
+                    <p>If you have any question, please feel free to reach out to 1-800-811-7308 or email at Khalsalogisticsllc@gmail.com.</p>
+                    <p>copyright &copy; 2025 Khalsa Logistics LLC.</p>
                 </div>
             </div>
 
