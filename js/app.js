@@ -115,8 +115,9 @@ function loadFromDataFiles() {
             }
             loaded++;
             if (loaded === total) {
+                saveData();
                 renderAll();
-                if (fuelData.length > 0 || loadsData.length > 0 || reportData.length > 0) {
+                if (fuelData.length > 0 || loadsData.length > 0 || reportData.length > 0 || tripData.length > 0) {
                     showToast('Data loaded from Excel files', 'success');
                 }
             }
@@ -2428,16 +2429,27 @@ function loadSampleData() {
         {driverName:"Driver A",truck:"MPL5046",date:"2025-11-07",startOdo:60981,endOdo:61048,totalMiles:67}
     ];
 
+    var sampleTrip = [
+        {driverName:"Driver A",truck:"MPL5046",day:"2025-11-01",startTime:"06:00",endTime:"18:00",totalHours:12,offDutyDay:false,destination:"Chicago, IL"},
+        {driverName:"Driver A",truck:"MPL5046",day:"2025-11-02",startTime:"",endTime:"",totalHours:0,offDutyDay:true,destination:""},
+        {driverName:"Driver A",truck:"MPL5046",day:"2025-11-03",startTime:"05:30",endTime:"17:30",totalHours:12,offDutyDay:false,destination:"Detroit, MI"},
+        {driverName:"Driver A",truck:"MPL5046",day:"2025-11-04",startTime:"07:00",endTime:"19:00",totalHours:12,offDutyDay:false,destination:"Columbus, OH"},
+        {driverName:"Driver A",truck:"MPL5046",day:"2025-11-05",startTime:"06:00",endTime:"16:00",totalHours:10,offDutyDay:false,destination:"Indianapolis, IN"}
+    ];
+
     fuelData = sampleFuel;
     loadsData = sampleLoads;
     reportData = sampleReport;
+    tripData = sampleTrip;
     filteredFuel = [...fuelData];
     filteredLoads = [...loadsData];
     filteredReport = [...reportData];
+    filteredTrip = [...tripData];
     saveData();
     saveFileRecord('Sample - Fuel', 'Fuel', sampleFuel.length);
     saveFileRecord('Sample - Loads', 'Loads', sampleLoads.length);
     saveFileRecord('Sample - Report', 'Report (Miles/Odo)', sampleReport.length);
+    saveFileRecord('Sample - Trip Sheet', 'Local Trip Sheet', sampleTrip.length);
     renderAll();
     showToast('Sample data loaded successfully!', 'success');
 }
@@ -2645,6 +2657,7 @@ function setupSettings() {
                 }
                 loaded++;
                 if (loaded === dataFiles.length) {
+                    saveData();
                     renderAll();
                     populateFilterDropdowns();
                     btn.disabled = false;
@@ -2739,10 +2752,15 @@ function setupSettings() {
                 }
                 loaded++;
                 if (loaded === files.length) {
+                    saveData();
+                    filteredFuel = [].concat(fuelData);
+                    filteredLoads = [].concat(loadsData);
+                    filteredReport = [].concat(reportData);
+                    filteredTrip = [].concat(tripData);
                     renderAll();
                     populateFilterDropdowns();
                     statusEl.textContent = successCount + ' dataset(s) loaded from ' + files.length + ' file(s).';
-                    showToast('Re-uploaded ' + successCount + ' dataset(s) successfully', 'success');
+                    showToast('Re-uploaded ' + successCount + ' dataset(s) successfully. Data saved.', 'success');
                     setTimeout(function() { statusEl.textContent = ''; }, 5000);
                 }
             };
