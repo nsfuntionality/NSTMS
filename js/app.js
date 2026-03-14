@@ -44,6 +44,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (fuelData.length === 0 && loadsData.length === 0 && reportData.length === 0) {
         loadFromDataFiles();
     }
+    // Preload logo for PDF exports
+    preloadPDFLogo();
 });
 
 // ===== Data Loading =====
@@ -339,6 +341,36 @@ function renderFuelTable() {
             editRecord(this.dataset.type, parseInt(this.dataset.idx));
         });
     });
+
+    updateFuelReportHeader();
+}
+
+function updateFuelReportHeader() {
+    var data = filteredFuel.length ? filteredFuel : fuelData;
+    // Compute date range from actual data
+    var minDate = null, maxDate = null;
+    data.forEach(function(r) {
+        if (!r.tranDate) return;
+        var d = new Date(r.tranDate);
+        if (isNaN(d.getTime())) return;
+        if (!minDate || d < minDate) minDate = d;
+        if (!maxDate || d > maxDate) maxDate = d;
+    });
+
+    var fmtShort = function(d) {
+        if (!d) return '--';
+        return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+    };
+
+    document.getElementById('fuelReportDateLine').textContent = fmtShort(minDate);
+    document.getElementById('fuelMetaCarrier').textContent = FUEL_REPORT_META.carrier;
+    document.getElementById('fuelMetaStartDate').textContent = fmtShort(minDate);
+    document.getElementById('fuelMetaEndDate').textContent = fmtShort(maxDate);
+    document.getElementById('fuelMetaCarrierId').textContent = FUEL_REPORT_META.carrierId;
+    document.getElementById('fuelMetaContractId').textContent = FUEL_REPORT_META.contractId;
+    document.getElementById('fuelMetaGroupBy').textContent = FUEL_REPORT_META.groupBy;
+    document.getElementById('fuelMetaSortBy').textContent = FUEL_REPORT_META.sortBy;
+    document.getElementById('fuelMetaTotalRecords').textContent = data.length;
 }
 
 function renderLoadsTable() {
@@ -419,34 +451,118 @@ function renderTripTable() {
     });
 }
 
+// Helper: get the Saturday end-of-week for a given date
+function getWeekEndSaturday(d) {
+    var day = d.getDay(); // 0=Sun, 6=Sat
+    var diff = 6 - day;
+    var sat = new Date(d);
+    sat.setDate(sat.getDate() + diff);
+    return sat;
+}
+
+// Helper: group daily report records into weekly buckets (Sun 00:05 - Sat 23:55)
+function groupByWeek(records) {
+    if (!records.length) return [];
+
+    // Sort by date
+    var sorted = records.slice().sort(function(a, b) {
+        return (a.date || '').localeCompare(b.date || '');
+    });
+
+    // Determine month boundaries from the data
+    var firstDate = new Date(sorted[0].date + 'T00:00:00');
+    var lastDate = new Date(sorted[sorted.length - 1].date + 'T00:00:00');
+
+    var weeks = [];
+    var currentStart = new Date(firstDate);
+
+    while (currentStart <= lastDate) {
+        var weekEnd = getWeekEndSaturday(currentStart);
+        // Cap week end at last date of data
+        if (weekEnd > lastDate) weekEnd = new Date(lastDate);
+
+        var startStr = currentStart.toISOString().slice(0, 10);
+        var endStr = weekEnd.toISOString().slice(0, 10);
+
+        var weekRecords = sorted.filter(function(r) {
+            return r.date >= startStr && r.date <= endStr;
+        });
+
+        var trucks = new Set();
+        var drivers = new Set();
+        var totalMiles = 0;
+        var startOdoMin = Infinity;
+        var endOdoMax = 0;
+
+        weekRecords.forEach(function(r) {
+            if (r.truck) r.truck.split(',').forEach(function(t) { trucks.add(t.trim()); });
+            if (r.driverName) drivers.add(r.driverName);
+            totalMiles += (parseFloat(r.totalMiles) || 0);
+            var so = parseFloat(r.startOdo) || 0;
+            var eo = parseFloat(r.endOdo) || 0;
+            if (so > 0 && so < startOdoMin) startOdoMin = so;
+            if (eo > endOdoMax) endOdoMax = eo;
+        });
+
+        var truckList = Array.from(trucks);
+        var reportName = truckList.length ? 'Use Truck - ' + truckList.join(',') : '';
+
+        weeks.push({
+            reportName: reportName,
+            driver: Array.from(drivers).join(', '),
+            date: endStr,
+            state: 'LL',
+            startOdo: startOdoMin === Infinity ? 0 : startOdoMin,
+            endOdo: endOdoMax,
+            miles: totalMiles
+        });
+
+        // Move to next Sunday
+        var nextSun = new Date(weekEnd);
+        nextSun.setDate(nextSun.getDate() + 1);
+        currentStart = nextSun;
+    }
+
+    return weeks;
+}
+
 function renderReport() {
-    // Miles Per Day table
     var milesBody = document.querySelector('#reportMilesTable tbody');
     milesBody.innerHTML = '';
     var totalMiles = 0;
 
     if (filteredReport.length === 0) {
-        milesBody.innerHTML = '<tr><td colspan="6" class="empty-state">No odometer/miles data. Upload a report file with miles data.</td></tr>';
+        milesBody.innerHTML = '<tr><td colspan="7" class="empty-state">No miles data. Upload a report file with miles data.</td></tr>';
     } else {
-        filteredReport.forEach(function(r) {
+        // Determine driver name for the title
+        var driverNames = new Set();
+        filteredReport.forEach(function(r) { if (r.driverName) driverNames.add(r.driverName); });
+        var driverLabel = driverNames.size ? Array.from(driverNames).join(', ') : '';
+        if (driverLabel) {
+            document.getElementById('rptWeeklyTitle').textContent = 'Weekly - ' + driverLabel + ' Miles Service Information';
+        }
+
+        var weeks = groupByWeek(filteredReport);
+        weeks.forEach(function(w) {
             var tr = document.createElement('tr');
             tr.innerHTML =
-                '<td>' + esc(r.driverName || driver) + '</td>' +
-                '<td>' + esc(r.truck || truck) + '</td>' +
-                '<td>' + formatDate(r.date) + '</td>' +
-                '<td class="amount-cell">' + esc(r.startOdo) + '</td>' +
-                '<td class="amount-cell">' + esc(r.endOdo) + '</td>' +
-                '<td class="amount-cell">' + esc(r.totalMiles) + '</td>';
+                '<td>' + esc(w.reportName) + '</td>' +
+                '<td>' + esc(w.driver) + '</td>' +
+                '<td>' + formatDate(w.date) + '</td>' +
+                '<td>' + esc(w.state) + '</td>' +
+                '<td class="odo-col amount-cell">' + (w.startOdo ? w.startOdo.toLocaleString() : '') + '</td>' +
+                '<td class="odo-col amount-cell">' + (w.endOdo ? w.endOdo.toLocaleString() : '') + '</td>' +
+                '<td class="amount-cell">' + w.miles.toFixed(2) + '</td>';
             milesBody.appendChild(tr);
-            totalMiles += (parseFloat(r.totalMiles) || 0);
+            totalMiles += w.miles;
         });
     }
 
-    document.getElementById('rptMilesTotal').innerHTML = '<strong>' + totalMiles.toLocaleString() + '</strong>';
+    document.getElementById('rptMilesTotal').innerHTML = '<strong>' + totalMiles.toFixed(2) + '</strong>';
 
-    // Total Earnings at $0.50 per mile
+    // Total Earnings at $0.50/mile
     var totalEarnings = totalMiles * 0.50;
-    document.getElementById('rptTotalEarnings').textContent = '$' + totalEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    document.getElementById('rptTotalEarnings').textContent = '$' + totalEarnings.toFixed(2);
 }
 
 function renderStoredFiles() {
@@ -752,19 +868,17 @@ function saveToExcel(type) {
         XLSX.utils.book_append_sheet(wb, ws, 'Loads');
         filename = 'Loads.xlsx';
     } else if (type === 'report') {
-        var reportHeaders = ['Driver Name', 'Truck', 'Date', 'Start Odo', 'End Odo', 'Total Miles'];
+        var weeks = groupByWeek(filteredReport);
+        var reportHeaders = ['Report Name', 'Driver ID', 'Date', 'State', 'Miles'];
         var reportRows = [reportHeaders];
-        reportData.forEach(function(r) {
-            reportRows.push([
-                r.driverName || '', r.truck || '', r.date, r.startOdo, r.endOdo,
-                r.totalMiles
-            ]);
+        weeks.forEach(function(w) {
+            reportRows.push([w.reportName, w.driver, w.date, w.state, w.miles]);
         });
         ws = XLSX.utils.aoa_to_sheet(reportRows);
-        ws['!cols'] = reportHeaders.map(function() { return { wch: 14 }; });
+        ws['!cols'] = [{ wch: 24 }, { wch: 14 }, { wch: 12 }, { wch: 8 }, { wch: 12 }];
         wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Report');
-        filename = 'Report.xlsx';
+        XLSX.utils.book_append_sheet(wb, ws, 'Weekly Miles');
+        filename = 'Weekly_Miles_Report.xlsx';
     } else if (type === 'trip') {
         var tripHeaders = ['Driver Name', 'Truck', 'Day', 'Start Time', 'End Time', 'Total Hours', 'Off Duty Day', 'Destination City/State'];
         var tripRows = [tripHeaders];
@@ -1464,11 +1578,12 @@ function setupExport() {
     });
 
     document.getElementById('exportReportCSV').addEventListener('click', function() {
-        exportCSV(filteredReport, [
-            'driverName', 'truck', 'date', 'startOdo', 'endOdo', 'totalMiles'
+        var weeks = groupByWeek(filteredReport);
+        exportCSV(weeks, [
+            'reportName', 'driver', 'date', 'state', 'miles'
         ], [
-            'Driver Name', 'Truck', 'Date', 'Start Odometer', 'End Odometer', 'Total Miles'
-        ], 'report_export.csv');
+            'Report Name', 'Driver ID', 'Date', 'State', 'Miles'
+        ], 'weekly_miles_report.csv');
     });
 
     // Save to Excel buttons
@@ -1520,6 +1635,29 @@ function exportCSV(data, fields, headers, filename) {
 }
 
 // ===== Export PDF =====
+// Preload logo image as base64 for PDF exports
+function preloadPDFLogo() {
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() {
+        var canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        window._pdfLogoData = canvas.toDataURL('image/png');
+    };
+    img.src = 'data/Khalsa_Logo (1).png';
+}
+
+var FUEL_REPORT_META = {
+    carrier: 'KHALSA LOGISTICS LLC',
+    carrierId: '1429841',
+    contractId: 'All',
+    groupBy: 'Card Number',
+    sortBy: 'Transaction Date'
+};
+
 var COMPANY_INFO = {
     name: 'Khalsa Logistics LLC',
     address: '9875 S 76th Street',
@@ -1530,6 +1668,11 @@ var COMPANY_INFO = {
 
 function addPDFHeader(doc, title) {
     var pageWidth = doc.internal.pageSize.getWidth();
+
+    // Logo
+    if (window._pdfLogoData) {
+        doc.addImage(window._pdfLogoData, 'PNG', 10, 6, 20, 20);
+    }
 
     // Company name
     doc.setFontSize(16);
@@ -1575,7 +1718,89 @@ function exportPDF(type) {
     if (type === 'fuel') {
         if (!filteredFuel.length) { showToast('No fuel data to export', 'error'); return; }
         var doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
-        var startY = addPDFHeader(doc, 'Fuel Transaction Report');
+        var pageWidth = doc.internal.pageSize.getWidth();
+
+        // Compute date range
+        var minDate = null, maxDate = null;
+        filteredFuel.forEach(function(r) {
+            if (!r.tranDate) return;
+            var d = new Date(r.tranDate);
+            if (isNaN(d.getTime())) return;
+            if (!minDate || d < minDate) minDate = d;
+            if (!maxDate || d > maxDate) maxDate = d;
+        });
+        var fmtShort = function(d) {
+            if (!d) return '--';
+            return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+        };
+
+        // Logo + date line at top
+        var y = 12;
+        if (window._pdfLogoData) {
+            doc.addImage(window._pdfLogoData, 'PNG', 8, 6, 22, 22);
+        }
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(fmtShort(minDate), pageWidth - 10, y, { align: 'right' });
+
+        // Title
+        y = 22;
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Transaction Report', pageWidth / 2, y, { align: 'center' });
+
+        // Divider
+        y = 27;
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.3);
+        doc.line(8, y, pageWidth - 8, y);
+
+        // Meta row 1
+        y = 33;
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Carrier:', 10, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(FUEL_REPORT_META.carrier, 30, y);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Start Date:', 95, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(fmtShort(minDate), 118, y);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('End Date:', 140, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(fmtShort(maxDate), 160, y);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Carrier Id:', 185, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(FUEL_REPORT_META.carrierId, 207, y);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Contract Id:', 225, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(FUEL_REPORT_META.contractId, 250, y);
+
+        // Meta row 2
+        y = 39;
+        doc.setFont('helvetica', 'bold');
+        doc.text('Group by:', 10, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(FUEL_REPORT_META.groupBy, 30, y);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Sort by:', 95, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(FUEL_REPORT_META.sortBy, 113, y);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Total Records:', pageWidth - 40, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(String(filteredFuel.length), pageWidth - 10, y, { align: 'right' });
+
+        var startY = 44;
 
         var headers = ['Card #', 'Date', 'Time', 'Invoice', 'Unit', 'Driver', 'Odometer', 'Location', 'City', 'State', 'Fees', 'Item', 'Price', 'Qty', 'Amt', 'DB', 'Currency'];
         var rows = filteredFuel.map(function(r) {
@@ -1637,38 +1862,36 @@ function exportPDF(type) {
 
     } else if (type === 'report') {
         var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-        var startY = addPDFHeader(doc, 'Earning Report');
         var pageWidth = doc.internal.pageSize.getWidth();
+
+        // Title from table header
+        var titleText = document.getElementById('rptWeeklyTitle').textContent || 'Weekly Miles Service Information';
+        var startY = addPDFHeader(doc, titleText);
 
         var tableY = startY + 5;
 
-        // Miles Per Day table
-        if (filteredReport.length) {
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(26, 86, 219);
-            doc.text('Miles Per Day (Odometer Tracking)', 14, tableY);
-            doc.setTextColor(0, 0, 0);
-            tableY += 3;
-
-            var milesHeaders = ['Driver', 'Truck', 'Date', 'Start Odo', 'End Odo', 'Total Miles'];
-            var milesRows = filteredReport.map(function(r) {
-                return [r.driverName || '', r.truck || '', formatDate(r.date), r.startOdo, r.endOdo, r.totalMiles];
+        // Weekly Miles table (NO odometer columns in PDF)
+        var weeks = groupByWeek(filteredReport);
+        if (weeks.length) {
+            var milesHeaders = ['Report Name', 'Driver ID', 'Date', 'State', 'Miles'];
+            var milesRows = weeks.map(function(w) {
+                return [w.reportName, w.driver, formatDate(w.date), w.state, w.miles.toFixed(2)];
             });
 
             var totalMilesCalc = 0;
-            filteredReport.forEach(function(r) {
-                totalMilesCalc += (parseFloat(r.totalMiles) || 0);
-            });
-            milesRows.push(['', '', '', '', 'TOTAL:', totalMilesCalc.toFixed(0)]);
+            weeks.forEach(function(w) { totalMilesCalc += w.miles; });
+            milesRows.push(['', '', '', 'Total', totalMilesCalc.toFixed(2)]);
 
             doc.autoTable({
                 head: [milesHeaders],
                 body: milesRows,
                 startY: tableY,
-                styles: { fontSize: 7, cellPadding: 1.5 },
-                headStyles: { fillColor: [26, 86, 219], fontSize: 7, fontStyle: 'bold' },
+                styles: { fontSize: 8, cellPadding: 2 },
+                headStyles: { fillColor: [26, 86, 219], fontSize: 8, fontStyle: 'bold' },
                 alternateRowStyles: { fillColor: [245, 247, 250] },
+                columnStyles: {
+                    4: { halign: 'right' }
+                },
                 didParseCell: function(data) {
                     if (data.row.index === milesRows.length - 1 && data.section === 'body') {
                         data.cell.styles.fontStyle = 'bold';
@@ -1679,15 +1902,15 @@ function exportPDF(type) {
             });
 
             tableY = doc.lastAutoTable.finalY + 10;
-        }
 
-        // Total Earnings
-        var totalEarnings = (totalMilesCalc * 0.50);
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(26, 86, 219);
-        doc.text('Total Earnings (@ $0.50/mile): $' + totalEarnings.toFixed(2), 14, tableY);
-        doc.setTextColor(0, 0, 0);
+            // Total Earnings
+            var totalEarnings = totalMilesCalc * 0.50;
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(26, 86, 219);
+            doc.text('Total Earnings (@ $0.50/mile): $' + totalEarnings.toFixed(2), 14, tableY);
+            doc.setTextColor(0, 0, 0);
+        }
 
         doc.save('Driver_Earning_Report.pdf');
         showToast('Report PDF exported', 'success');
@@ -1719,7 +1942,10 @@ function exportPDF(type) {
 
             var y = 14;
 
-            // Company header
+            // Logo + Company header
+            if (window._pdfLogoData) {
+                doc.addImage(window._pdfLogoData, 'PNG', 10, 6, 18, 18);
+            }
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
             doc.text(COMPANY_INFO.name, pageWidth / 2, y, { align: 'center' });
@@ -2097,6 +2323,73 @@ function setupSettings() {
         settingsData.auditMode = this.checked;
         sessionStorage.setItem('tms_audit_mode', this.checked ? 'true' : 'false');
         applyAuditMode();
+    });
+
+    // Reload from Excel files button
+    document.getElementById('reloadFromExcelBtn').addEventListener('click', function() {
+        if (!confirm('This will replace ALL current data (Fuel, Loads, Report, Trip Sheet) with data from the Excel files in the data/ folder. Continue?')) return;
+        var btn = this;
+        var statusEl = document.getElementById('reloadStatus');
+        btn.disabled = true;
+        statusEl.textContent = 'Loading...';
+
+        // Clear existing data
+        fuelData = []; loadsData = []; reportData = []; tripData = [];
+        filteredFuel = []; filteredLoads = []; filteredReport = []; filteredTrip = [];
+        localStorage.removeItem(STORAGE_KEYS.fuel);
+        localStorage.removeItem(STORAGE_KEYS.loads);
+        localStorage.removeItem(STORAGE_KEYS.report);
+        localStorage.removeItem(STORAGE_KEYS.trip);
+        localStorage.removeItem(STORAGE_KEYS.files);
+
+        // Re-load from Excel files
+        var dataFiles = [
+            { url: 'data/Fuel.xlsx', type: 'fuel' },
+            { url: 'data/Loads.xlsx', type: 'loads' },
+            { url: 'data/Report.xlsx', type: 'report' },
+            { url: 'data/LocalTripsheet.xlsx', type: 'trip' }
+        ];
+        var loaded = 0;
+        var successCount = 0;
+
+        dataFiles.forEach(function(fileInfo) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', fileInfo.url + '?t=' + Date.now(), true);
+            xhr.responseType = 'arraybuffer';
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        var data = new Uint8Array(xhr.response);
+                        var workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                        if (fileInfo.type === 'fuel') parseFuelWorkbook(workbook, fileInfo.url);
+                        else if (fileInfo.type === 'loads') parseLoadsWorkbook(workbook, fileInfo.url);
+                        else if (fileInfo.type === 'report') parseReportWorkbook(workbook, fileInfo.url);
+                        else if (fileInfo.type === 'trip') parseTripWorkbook(workbook, fileInfo.url);
+                        successCount++;
+                    } catch (err) {
+                        console.warn('Could not parse ' + fileInfo.url + ':', err.message);
+                    }
+                }
+                loaded++;
+                if (loaded === dataFiles.length) {
+                    renderAll();
+                    populateFilterDropdowns();
+                    btn.disabled = false;
+                    statusEl.textContent = successCount + ' file(s) loaded successfully.';
+                    showToast('Data reloaded from Excel files (' + successCount + ' files)', 'success');
+                    setTimeout(function() { statusEl.textContent = ''; }, 5000);
+                }
+            };
+            xhr.onerror = function() {
+                loaded++;
+                if (loaded === dataFiles.length) {
+                    renderAll();
+                    btn.disabled = false;
+                    statusEl.textContent = successCount + ' file(s) loaded.';
+                }
+            };
+            xhr.send();
+        });
     });
 
     // Add user button

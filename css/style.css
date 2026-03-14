@@ -437,6 +437,44 @@ body {
     align-items: flex-end;
 }
 
+/* ===== Transaction Report Header ===== */
+.txn-report-header {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 24px 14px;
+    margin-bottom: 18px;
+}
+.txn-report-date-line {
+    text-align: right;
+    font-size: 13px;
+    color: var(--text-light);
+    margin-bottom: 2px;
+}
+.txn-report-title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 14px;
+}
+.txn-report-meta {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+}
+.txn-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 32px;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+.txn-meta-row strong {
+    font-weight: 700;
+}
+.txn-meta-right {
+    margin-left: auto;
+}
+
 /* ===== Content Header ===== */
 .content-header {
     display: flex;
@@ -983,6 +1021,11 @@ body.audit-mode #loadsTable th:nth-child(2),
 body.audit-mode #loadsTable td:nth-child(2),
 body.audit-mode #loadsTable th:nth-child(3),
 body.audit-mode #loadsTable td:nth-child(3) {
+    display: none !important;
+}
+
+/* Hide odometer columns (Start Odo, End Odo) in report during audit mode */
+body.audit-mode .odo-col {
     display: none !important;
 }
 
