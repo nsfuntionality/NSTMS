@@ -2665,6 +2665,92 @@ function setupSettings() {
         });
     });
 
+    // Download All Excels button
+    document.getElementById('downloadAllExcelsBtn').addEventListener('click', function() {
+        var count = 0;
+        if (fuelData.length) { saveToExcel('fuel'); count++; }
+        if (loadsData.length) { saveToExcel('loads'); count++; }
+        if (reportData.length) { saveToExcel('report'); count++; }
+        if (tripData.length) { saveToExcel('trip'); count++; }
+        if (count === 0) {
+            showToast('No data to download. Upload files first.', 'error');
+        } else {
+            showToast('Downloaded ' + count + ' Excel file(s). Edit and re-upload to update.', 'success');
+        }
+    });
+
+    // Re-Upload Excels input
+    document.getElementById('reuploadFileInput').addEventListener('change', function(e) {
+        var files = Array.from(e.target.files);
+        if (!files.length) return;
+        if (!confirm('This will replace ALL current data with the uploaded file(s). Continue?')) {
+            e.target.value = '';
+            return;
+        }
+
+        // Clear existing data
+        fuelData = []; loadsData = []; reportData = []; tripData = [];
+        filteredFuel = []; filteredLoads = []; filteredReport = []; filteredTrip = [];
+        localStorage.removeItem(STORAGE_KEYS.fuel);
+        localStorage.removeItem(STORAGE_KEYS.loads);
+        localStorage.removeItem(STORAGE_KEYS.report);
+        localStorage.removeItem(STORAGE_KEYS.trip);
+        localStorage.removeItem(STORAGE_KEYS.files);
+
+        var statusEl = document.getElementById('reloadStatus');
+        statusEl.textContent = 'Uploading...';
+        var loaded = 0;
+        var successCount = 0;
+
+        files.forEach(function(file) {
+            var reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    var data = new Uint8Array(evt.target.result);
+                    var workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    var nameLower = file.name.toLowerCase();
+
+                    // Try to detect file type from name or sheet names
+                    var sheetNames = workbook.SheetNames.map(function(s) { return s.toLowerCase(); });
+                    var hasFuel = sheetNames.some(function(s) { return s.indexOf('fuel') !== -1; });
+                    var hasLoads = sheetNames.some(function(s) { return s.indexOf('load') !== -1; });
+                    var hasReport = sheetNames.some(function(s) { return s.indexOf('report') !== -1 || s.indexOf('mile') !== -1; });
+                    var hasTrip = sheetNames.some(function(s) { return s.indexOf('trip') !== -1; });
+
+                    // If combined file with multiple known sheets
+                    if (hasFuel || hasLoads || hasReport || hasTrip) {
+                        if (hasFuel) { parseFuelWorkbook(workbook, file.name); successCount++; }
+                        if (hasLoads) { parseLoadsWorkbook(workbook, file.name); successCount++; }
+                        if (hasReport) { parseReportWorkbook(workbook, file.name); successCount++; }
+                        if (hasTrip) { parseTripWorkbook(workbook, file.name); successCount++; }
+                    } else if (nameLower.indexOf('fuel') !== -1) {
+                        parseFuelWorkbook(workbook, file.name); successCount++;
+                    } else if (nameLower.indexOf('load') !== -1) {
+                        parseLoadsWorkbook(workbook, file.name); successCount++;
+                    } else if (nameLower.indexOf('report') !== -1 || nameLower.indexOf('mile') !== -1) {
+                        parseReportWorkbook(workbook, file.name); successCount++;
+                    } else if (nameLower.indexOf('trip') !== -1) {
+                        parseTripWorkbook(workbook, file.name); successCount++;
+                    } else {
+                        console.warn('Could not determine type for: ' + file.name);
+                    }
+                } catch (err) {
+                    console.warn('Error parsing ' + file.name + ':', err.message);
+                }
+                loaded++;
+                if (loaded === files.length) {
+                    renderAll();
+                    populateFilterDropdowns();
+                    statusEl.textContent = successCount + ' dataset(s) loaded from ' + files.length + ' file(s).';
+                    showToast('Re-uploaded ' + successCount + ' dataset(s) successfully', 'success');
+                    setTimeout(function() { statusEl.textContent = ''; }, 5000);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+        e.target.value = '';
+    });
+
     // Add user button
     document.getElementById('addUserBtn').addEventListener('click', function() {
         settingsData.users.push({ username: '', password: '', name: '' });

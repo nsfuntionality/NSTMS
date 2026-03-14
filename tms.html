@@ -474,11 +474,14 @@
                     <div class="settings-card-header">
                         <div>
                             <h3>Data Management</h3>
-                            <p class="settings-desc">Reload data from the Excel files in the <code>data/</code> folder. This will replace all current data (Fuel, Loads, Report, Trip Sheet) with whatever is in the Excel files.</p>
+                            <p class="settings-desc">Download all data as Excel files, edit them externally, then re-upload to update. Or reload from the <code>data/</code> folder.</p>
                         </div>
                     </div>
-                    <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center;">
-                        <button class="btn btn-sm btn-primary" id="reloadFromExcelBtn">&#128260; Reload from Excel Files</button>
+                    <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button class="btn btn-sm btn-success" id="downloadAllExcelsBtn">&#11015; Download All Excels</button>
+                        <input type="file" id="reuploadFileInput" accept=".xlsx,.xls" multiple class="file-input" style="display:none;">
+                        <label for="reuploadFileInput" class="btn btn-sm btn-primary" style="cursor:pointer;">&#11014; Re-Upload Excels</label>
+                        <button class="btn btn-sm btn-outline" id="reloadFromExcelBtn">&#128260; Reload from data/ Folder</button>
                         <span id="reloadStatus" style="font-size: 13px; color: var(--text-light);"></span>
                     </div>
                 </div>
