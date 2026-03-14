@@ -44,6 +44,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (fuelData.length === 0 && loadsData.length === 0 && reportData.length === 0) {
         loadFromDataFiles();
     }
+    // Preload logo for PDF exports
+    preloadPDFLogo();
 });
 
 // ===== Data Loading =====
@@ -339,6 +341,36 @@ function renderFuelTable() {
             editRecord(this.dataset.type, parseInt(this.dataset.idx));
         });
     });
+
+    updateFuelReportHeader();
+}
+
+function updateFuelReportHeader() {
+    var data = filteredFuel.length ? filteredFuel : fuelData;
+    // Compute date range from actual data
+    var minDate = null, maxDate = null;
+    data.forEach(function(r) {
+        if (!r.tranDate) return;
+        var d = new Date(r.tranDate);
+        if (isNaN(d.getTime())) return;
+        if (!minDate || d < minDate) minDate = d;
+        if (!maxDate || d > maxDate) maxDate = d;
+    });
+
+    var fmtShort = function(d) {
+        if (!d) return '--';
+        return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+    };
+
+    document.getElementById('fuelReportDateLine').textContent = fmtShort(minDate);
+    document.getElementById('fuelMetaCarrier').textContent = FUEL_REPORT_META.carrier;
+    document.getElementById('fuelMetaStartDate').textContent = fmtShort(minDate);
+    document.getElementById('fuelMetaEndDate').textContent = fmtShort(maxDate);
+    document.getElementById('fuelMetaCarrierId').textContent = FUEL_REPORT_META.carrierId;
+    document.getElementById('fuelMetaContractId').textContent = FUEL_REPORT_META.contractId;
+    document.getElementById('fuelMetaGroupBy').textContent = FUEL_REPORT_META.groupBy;
+    document.getElementById('fuelMetaSortBy').textContent = FUEL_REPORT_META.sortBy;
+    document.getElementById('fuelMetaTotalRecords').textContent = data.length;
 }
 
 function renderLoadsTable() {
@@ -1603,6 +1635,29 @@ function exportCSV(data, fields, headers, filename) {
 }
 
 // ===== Export PDF =====
+// Preload logo image as base64 for PDF exports
+function preloadPDFLogo() {
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() {
+        var canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        window._pdfLogoData = canvas.toDataURL('image/png');
+    };
+    img.src = 'data/Khalsa_Logo (1).png';
+}
+
+var FUEL_REPORT_META = {
+    carrier: 'KHALSA LOGISTICS LLC',
+    carrierId: '1429841',
+    contractId: 'All',
+    groupBy: 'Card Number',
+    sortBy: 'Transaction Date'
+};
+
 var COMPANY_INFO = {
     name: 'Khalsa Logistics LLC',
     address: '9875 S 76th Street',
@@ -1613,6 +1668,11 @@ var COMPANY_INFO = {
 
 function addPDFHeader(doc, title) {
     var pageWidth = doc.internal.pageSize.getWidth();
+
+    // Logo
+    if (window._pdfLogoData) {
+        doc.addImage(window._pdfLogoData, 'PNG', 10, 6, 20, 20);
+    }
 
     // Company name
     doc.setFontSize(16);
@@ -1658,7 +1718,89 @@ function exportPDF(type) {
     if (type === 'fuel') {
         if (!filteredFuel.length) { showToast('No fuel data to export', 'error'); return; }
         var doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
-        var startY = addPDFHeader(doc, 'Fuel Transaction Report');
+        var pageWidth = doc.internal.pageSize.getWidth();
+
+        // Compute date range
+        var minDate = null, maxDate = null;
+        filteredFuel.forEach(function(r) {
+            if (!r.tranDate) return;
+            var d = new Date(r.tranDate);
+            if (isNaN(d.getTime())) return;
+            if (!minDate || d < minDate) minDate = d;
+            if (!maxDate || d > maxDate) maxDate = d;
+        });
+        var fmtShort = function(d) {
+            if (!d) return '--';
+            return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+        };
+
+        // Logo + date line at top
+        var y = 12;
+        if (window._pdfLogoData) {
+            doc.addImage(window._pdfLogoData, 'PNG', 8, 6, 22, 22);
+        }
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(fmtShort(minDate), pageWidth - 10, y, { align: 'right' });
+
+        // Title
+        y = 22;
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Transaction Report', pageWidth / 2, y, { align: 'center' });
+
+        // Divider
+        y = 27;
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.3);
+        doc.line(8, y, pageWidth - 8, y);
+
+        // Meta row 1
+        y = 33;
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Carrier:', 10, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(FUEL_REPORT_META.carrier, 30, y);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Start Date:', 95, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(fmtShort(minDate), 118, y);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('End Date:', 140, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(fmtShort(maxDate), 160, y);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Carrier Id:', 185, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(FUEL_REPORT_META.carrierId, 207, y);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Contract Id:', 225, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(FUEL_REPORT_META.contractId, 250, y);
+
+        // Meta row 2
+        y = 39;
+        doc.setFont('helvetica', 'bold');
+        doc.text('Group by:', 10, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(FUEL_REPORT_META.groupBy, 30, y);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Sort by:', 95, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(FUEL_REPORT_META.sortBy, 113, y);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Total Records:', pageWidth - 40, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(String(filteredFuel.length), pageWidth - 10, y, { align: 'right' });
+
+        var startY = 44;
 
         var headers = ['Card #', 'Date', 'Time', 'Invoice', 'Unit', 'Driver', 'Odometer', 'Location', 'City', 'State', 'Fees', 'Item', 'Price', 'Qty', 'Amt', 'DB', 'Currency'];
         var rows = filteredFuel.map(function(r) {
@@ -1800,7 +1942,10 @@ function exportPDF(type) {
 
             var y = 14;
 
-            // Company header
+            // Logo + Company header
+            if (window._pdfLogoData) {
+                doc.addImage(window._pdfLogoData, 'PNG', 10, 6, 18, 18);
+            }
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
             doc.text(COMPANY_INFO.name, pageWidth / 2, y, { align: 'center' });
