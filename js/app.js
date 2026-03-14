@@ -1734,11 +1734,8 @@ function exportPDF(type) {
             return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
         };
 
-        // Logo + date line at top
+        // Date line at top
         var y = 12;
-        if (window._pdfLogoData) {
-            doc.addImage(window._pdfLogoData, 'PNG', 8, 6, 22, 22);
-        }
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.text(fmtShort(minDate), pageWidth - 10, y, { align: 'right' });
