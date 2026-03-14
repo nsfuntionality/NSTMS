@@ -391,7 +391,7 @@ function renderLoadsTable() {
                 '<td>' + esc(r.pickup) + '</td>' +
                 '<td>' + formatDate(r.dropDate) + '</td>' +
                 '<td>' + esc(r.dropoff) + '</td>' +
-                '<td>' + esc(r.driver) + '</td>' +
+                '<td>' + esc(firstDriver(r.driver)) + '</td>' +
                 '<td>' + esc(r.truck) + '</td>' +
                 '<td>' + esc(r.trailer) + '</td>' +
                 '<td class="actions-cell"><button class="btn-edit" data-type="loads" data-idx="' + realIdx + '">Edit</button><button class="btn-delete" data-type="loads" data-idx="' + realIdx + '">Delete</button></td>';
@@ -439,7 +439,7 @@ function updateLoadReportHeader() {
     var drivers = {};
     var trucks = {};
     data.forEach(function(r) {
-        if (r.driver) drivers[r.driver] = true;
+        if (r.driver) drivers[firstDriver(r.driver)] = true;
         if (r.truck) trucks[r.truck] = true;
     });
     document.getElementById('loadMetaDrivers').textContent = Object.keys(drivers).join(', ') || '--';
@@ -461,8 +461,8 @@ function renderTripTable() {
                 '<td>' + esc(r.driverName) + '</td>' +
                 '<td>' + esc(r.truck) + '</td>' +
                 '<td>' + formatDate(r.day) + '</td>' +
-                '<td>' + esc(r.startTime) + '</td>' +
-                '<td>' + esc(r.endTime) + '</td>' +
+                '<td>' + esc(formatTime(r.startTime)) + '</td>' +
+                '<td>' + esc(formatTime(r.endTime)) + '</td>' +
                 '<td class="amount-cell">' + num(r.totalHours) + '</td>' +
                 '<td>' + (r.offDutyDay ? 'Yes' : '') + '</td>' +
                 '<td>' + esc(r.destination) + '</td>' +
@@ -641,6 +641,11 @@ function fmtPad(d) {
     var mm = ('0' + (d.getMonth() + 1)).slice(-2);
     var dd = ('0' + d.getDate()).slice(-2);
     return mm + '/' + dd + '/' + d.getFullYear();
+}
+
+function firstDriver(name) {
+    if (!name) return '';
+    return name.split('/')[0].trim();
 }
 
 function renderStoredFiles() {
@@ -842,8 +847,8 @@ function openEditTripModal(idx) {
             '<div class="form-group"><label>Destination City/State</label><input type="text" id="mTripDest" value="' + escAttr(r.destination) + '"></div>' +
         '</div>' +
         '<div class="form-row">' +
-            '<div class="form-group"><label>Start Time</label><input type="time" id="mTripStart" value="' + escAttr(r.startTime) + '"></div>' +
-            '<div class="form-group"><label>End Time</label><input type="time" id="mTripEnd" value="' + escAttr(r.endTime) + '"></div>' +
+            '<div class="form-group"><label>Start Time</label><input type="time" id="mTripStart" value="' + escAttr(formatTime(r.startTime)) + '"></div>' +
+            '<div class="form-group"><label>End Time</label><input type="time" id="mTripEnd" value="' + escAttr(formatTime(r.endTime)) + '"></div>' +
         '</div>' +
         '<div class="form-row">' +
             '<div class="form-group"><label>Total Hours</label><input type="number" step="0.01" id="mTripHours" value="' + escAttr(r.totalHours) + '"></div>' +
@@ -937,7 +942,7 @@ function saveToExcel(type) {
         loadsData.forEach(function(r) {
             loadsRows.push([
                 r.invoiceId, r.loadNum, r.broker, r.pickDate, r.pickup, r.dropDate,
-                r.dropoff, r.driver, r.truck, r.trailer
+                r.dropoff, firstDriver(r.driver), r.truck, r.trailer
             ]);
         });
         ws = XLSX.utils.aoa_to_sheet(loadsRows);
@@ -962,7 +967,7 @@ function saveToExcel(type) {
         var tripRows = [tripHeaders];
         tripData.forEach(function(r) {
             tripRows.push([
-                r.driverName || '', r.truck || '', r.day, r.startTime, r.endTime,
+                r.driverName || '', r.truck || '', r.day, formatTime(r.startTime), formatTime(r.endTime),
                 r.totalHours, r.offDutyDay ? 'Yes' : '', r.destination || ''
             ]);
         });
@@ -1953,7 +1958,7 @@ function exportPDF(type) {
 
         var drivers = {}, trucks = {};
         filteredLoads.forEach(function(r) {
-            if (r.driver) drivers[r.driver] = true;
+            if (r.driver) drivers[firstDriver(r.driver)] = true;
             if (r.truck) trucks[r.truck] = true;
         });
 
@@ -1997,7 +2002,7 @@ function exportPDF(type) {
         // Only show required columns
         var headers = ['Pick Date', 'Pickup', 'Drop Date', 'Dropoff', 'Driver', 'TruckName', 'Trailer'];
         var rows = filteredLoads.map(function(r) {
-            return [formatDate(r.pickDate), r.pickup, formatDate(r.dropDate), r.dropoff, r.driver, r.truck, r.trailer];
+            return [formatDate(r.pickDate), r.pickup, formatDate(r.dropDate), r.dropoff, firstDriver(r.driver), r.truck, r.trailer];
         });
 
         doc.autoTable({
@@ -2309,8 +2314,8 @@ function exportPDF(type) {
             var tripRows = records.map(function(r) {
                 return [
                     formatDate(r.day),
-                    r.startTime || '',
-                    r.endTime || '',
+                    formatTime(r.startTime) || '',
+                    formatTime(r.endTime) || '',
                     r.totalHours ? r.totalHours.toFixed(2) : '',
                     r.offDutyDay ? 'X' : '',
                     r.destination || ''
@@ -2658,6 +2663,92 @@ function setupSettings() {
             };
             xhr.send();
         });
+    });
+
+    // Download All Excels button
+    document.getElementById('downloadAllExcelsBtn').addEventListener('click', function() {
+        var count = 0;
+        if (fuelData.length) { saveToExcel('fuel'); count++; }
+        if (loadsData.length) { saveToExcel('loads'); count++; }
+        if (reportData.length) { saveToExcel('report'); count++; }
+        if (tripData.length) { saveToExcel('trip'); count++; }
+        if (count === 0) {
+            showToast('No data to download. Upload files first.', 'error');
+        } else {
+            showToast('Downloaded ' + count + ' Excel file(s). Edit and re-upload to update.', 'success');
+        }
+    });
+
+    // Re-Upload Excels input
+    document.getElementById('reuploadFileInput').addEventListener('change', function(e) {
+        var files = Array.from(e.target.files);
+        if (!files.length) return;
+        if (!confirm('This will replace ALL current data with the uploaded file(s). Continue?')) {
+            e.target.value = '';
+            return;
+        }
+
+        // Clear existing data
+        fuelData = []; loadsData = []; reportData = []; tripData = [];
+        filteredFuel = []; filteredLoads = []; filteredReport = []; filteredTrip = [];
+        localStorage.removeItem(STORAGE_KEYS.fuel);
+        localStorage.removeItem(STORAGE_KEYS.loads);
+        localStorage.removeItem(STORAGE_KEYS.report);
+        localStorage.removeItem(STORAGE_KEYS.trip);
+        localStorage.removeItem(STORAGE_KEYS.files);
+
+        var statusEl = document.getElementById('reloadStatus');
+        statusEl.textContent = 'Uploading...';
+        var loaded = 0;
+        var successCount = 0;
+
+        files.forEach(function(file) {
+            var reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    var data = new Uint8Array(evt.target.result);
+                    var workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    var nameLower = file.name.toLowerCase();
+
+                    // Try to detect file type from name or sheet names
+                    var sheetNames = workbook.SheetNames.map(function(s) { return s.toLowerCase(); });
+                    var hasFuel = sheetNames.some(function(s) { return s.indexOf('fuel') !== -1; });
+                    var hasLoads = sheetNames.some(function(s) { return s.indexOf('load') !== -1; });
+                    var hasReport = sheetNames.some(function(s) { return s.indexOf('report') !== -1 || s.indexOf('mile') !== -1; });
+                    var hasTrip = sheetNames.some(function(s) { return s.indexOf('trip') !== -1; });
+
+                    // If combined file with multiple known sheets
+                    if (hasFuel || hasLoads || hasReport || hasTrip) {
+                        if (hasFuel) { parseFuelWorkbook(workbook, file.name); successCount++; }
+                        if (hasLoads) { parseLoadsWorkbook(workbook, file.name); successCount++; }
+                        if (hasReport) { parseReportWorkbook(workbook, file.name); successCount++; }
+                        if (hasTrip) { parseTripWorkbook(workbook, file.name); successCount++; }
+                    } else if (nameLower.indexOf('fuel') !== -1) {
+                        parseFuelWorkbook(workbook, file.name); successCount++;
+                    } else if (nameLower.indexOf('load') !== -1) {
+                        parseLoadsWorkbook(workbook, file.name); successCount++;
+                    } else if (nameLower.indexOf('report') !== -1 || nameLower.indexOf('mile') !== -1) {
+                        parseReportWorkbook(workbook, file.name); successCount++;
+                    } else if (nameLower.indexOf('trip') !== -1) {
+                        parseTripWorkbook(workbook, file.name); successCount++;
+                    } else {
+                        console.warn('Could not determine type for: ' + file.name);
+                    }
+                } catch (err) {
+                    console.warn('Error parsing ' + file.name + ':', err.message);
+                }
+                loaded++;
+                if (loaded === files.length) {
+                    renderAll();
+                    populateFilterDropdowns();
+                    statusEl.textContent = successCount + ' dataset(s) loaded from ' + files.length + ' file(s).';
+                    showToast('Re-uploaded ' + successCount + ' dataset(s) successfully', 'success');
+                    setTimeout(function() { statusEl.textContent = ''; }, 5000);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+        e.target.value = '';
     });
 
     // Add user button
