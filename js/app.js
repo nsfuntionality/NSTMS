@@ -391,7 +391,7 @@ function renderLoadsTable() {
                 '<td>' + esc(r.pickup) + '</td>' +
                 '<td>' + formatDate(r.dropDate) + '</td>' +
                 '<td>' + esc(r.dropoff) + '</td>' +
-                '<td>' + esc(r.driver) + '</td>' +
+                '<td>' + esc(firstDriver(r.driver)) + '</td>' +
                 '<td>' + esc(r.truck) + '</td>' +
                 '<td>' + esc(r.trailer) + '</td>' +
                 '<td class="actions-cell"><button class="btn-edit" data-type="loads" data-idx="' + realIdx + '">Edit</button><button class="btn-delete" data-type="loads" data-idx="' + realIdx + '">Delete</button></td>';
@@ -439,7 +439,7 @@ function updateLoadReportHeader() {
     var drivers = {};
     var trucks = {};
     data.forEach(function(r) {
-        if (r.driver) drivers[r.driver] = true;
+        if (r.driver) drivers[firstDriver(r.driver)] = true;
         if (r.truck) trucks[r.truck] = true;
     });
     document.getElementById('loadMetaDrivers').textContent = Object.keys(drivers).join(', ') || '--';
@@ -641,6 +641,11 @@ function fmtPad(d) {
     var mm = ('0' + (d.getMonth() + 1)).slice(-2);
     var dd = ('0' + d.getDate()).slice(-2);
     return mm + '/' + dd + '/' + d.getFullYear();
+}
+
+function firstDriver(name) {
+    if (!name) return '';
+    return name.split('/')[0].trim();
 }
 
 function renderStoredFiles() {
@@ -937,7 +942,7 @@ function saveToExcel(type) {
         loadsData.forEach(function(r) {
             loadsRows.push([
                 r.invoiceId, r.loadNum, r.broker, r.pickDate, r.pickup, r.dropDate,
-                r.dropoff, r.driver, r.truck, r.trailer
+                r.dropoff, firstDriver(r.driver), r.truck, r.trailer
             ]);
         });
         ws = XLSX.utils.aoa_to_sheet(loadsRows);
@@ -1953,7 +1958,7 @@ function exportPDF(type) {
 
         var drivers = {}, trucks = {};
         filteredLoads.forEach(function(r) {
-            if (r.driver) drivers[r.driver] = true;
+            if (r.driver) drivers[firstDriver(r.driver)] = true;
             if (r.truck) trucks[r.truck] = true;
         });
 
@@ -1997,7 +2002,7 @@ function exportPDF(type) {
         // Only show required columns
         var headers = ['Pick Date', 'Pickup', 'Drop Date', 'Dropoff', 'Driver', 'TruckName', 'Trailer'];
         var rows = filteredLoads.map(function(r) {
-            return [formatDate(r.pickDate), r.pickup, formatDate(r.dropDate), r.dropoff, r.driver, r.truck, r.trailer];
+            return [formatDate(r.pickDate), r.pickup, formatDate(r.dropDate), r.dropoff, firstDriver(r.driver), r.truck, r.trailer];
         });
 
         doc.autoTable({
