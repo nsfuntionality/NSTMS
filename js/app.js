@@ -25,7 +25,8 @@ const STORAGE_KEYS = {
     loads: 'tms_loads_data',
     report: 'tms_report_data',
     trip: 'tms_trip_data',
-    files: 'tms_uploaded_files'
+    files: 'tms_uploaded_files',
+    masterFiles: 'tms_master_files'
 };
 
 // ===== Init =====
@@ -43,6 +44,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-load from Excel data files if no data in localStorage
     if (fuelData.length === 0 && loadsData.length === 0 && reportData.length === 0) {
         loadFromDataFiles();
+    } else {
+        // Ensure master file records exist even if data was already in localStorage
+        if (!localStorage.getItem(STORAGE_KEYS.masterFiles)) {
+            saveMasterFileRecords();
+        }
     }
     // Preload logo for PDF exports
     preloadPDFLogo();
@@ -81,7 +87,14 @@ function saveData() {
 }
 
 // ===== Auto-load from Excel data files =====
-function loadFromDataFiles() {
+var MASTER_FILE_MAP = {
+    fuel: { url: 'data/Fuel.xlsx', name: 'data/Fuel.xlsx', type: 'Fuel' },
+    loads: { url: 'data/Loads.xlsx', name: 'data/Loads.xlsx', type: 'Loads' },
+    report: { url: 'data/Report.xlsx', name: 'data/Report.xlsx', type: 'Report (Miles/Odo)' },
+    trip: { url: 'data/LocalTripsheet.xlsx', name: 'data/LocalTripsheet.xlsx', type: 'Local Trip Sheet' }
+};
+
+function loadFromDataFiles(callback) {
     var dataFiles = [
         { url: 'data/Fuel.xlsx', type: 'fuel' },
         { url: 'data/Loads.xlsx', type: 'loads' },
@@ -116,19 +129,35 @@ function loadFromDataFiles() {
             loaded++;
             if (loaded === total) {
                 saveData();
+                saveMasterFileRecords();
                 renderAll();
                 if (fuelData.length > 0 || loadsData.length > 0 || reportData.length > 0 || tripData.length > 0) {
                     showToast('Data loaded from Excel files', 'success');
                 }
+                if (callback) callback();
             }
         };
         xhr.onerror = function() {
             console.warn('Could not fetch ' + fileInfo.url);
             loaded++;
-            if (loaded === total) renderAll();
+            if (loaded === total) {
+                renderAll();
+                if (callback) callback();
+            }
         };
         xhr.send();
     });
+}
+
+// Save master file records based on current data counts
+function saveMasterFileRecords() {
+    var masterFiles = [
+        { name: MASTER_FILE_MAP.loads.name, type: MASTER_FILE_MAP.loads.type, rows: loadsData.length, date: new Date().toISOString() },
+        { name: MASTER_FILE_MAP.report.name, type: MASTER_FILE_MAP.report.type, rows: reportData.length, date: new Date().toISOString() },
+        { name: MASTER_FILE_MAP.fuel.name, type: MASTER_FILE_MAP.fuel.type, rows: fuelData.length, date: new Date().toISOString() },
+        { name: MASTER_FILE_MAP.trip.name, type: MASTER_FILE_MAP.trip.type, rows: tripData.length, date: new Date().toISOString() }
+    ];
+    localStorage.setItem(STORAGE_KEYS.masterFiles, JSON.stringify(masterFiles));
 }
 
 function saveFileRecord(name, type, rows) {
@@ -651,34 +680,80 @@ function firstDriver(name) {
 
 function renderStoredFiles() {
     var container = document.getElementById('storedFilesList');
-    var files = JSON.parse(localStorage.getItem(STORAGE_KEYS.files) || '[]');
-
-    if (files.length === 0) {
-        container.innerHTML = '<p class="empty-state">No files stored yet. Upload files above to get started.</p>';
-        return;
-    }
+    var masterFiles = JSON.parse(localStorage.getItem(STORAGE_KEYS.masterFiles) || '[]');
+    var userFiles = JSON.parse(localStorage.getItem(STORAGE_KEYS.files) || '[]');
 
     container.innerHTML = '';
-    files.forEach(function(f, i) {
-        var div = document.createElement('div');
-        div.className = 'stored-file-item';
-        div.innerHTML =
-            '<div class="stored-file-info">' +
-                '<span class="stored-file-name">' + esc(f.name) + '</span>' +
-                '<span class="stored-file-meta">' + esc(f.type) + ' | ' + f.rows + ' records | Uploaded ' + new Date(f.date).toLocaleDateString() + '</span>' +
-            '</div>' +
-            '<button class="btn btn-sm btn-outline btn-danger" data-idx="' + i + '">Remove</button>';
-        container.appendChild(div);
-    });
 
-    container.querySelectorAll('button[data-idx]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var idx = parseInt(this.dataset.idx);
-            files.splice(idx, 1);
-            localStorage.setItem(STORAGE_KEYS.files, JSON.stringify(files));
-            renderStoredFiles();
+    // Always show master files section
+    var masterHeader = document.createElement('div');
+    masterHeader.style.cssText = 'margin-bottom:10px;';
+    masterHeader.innerHTML = '<h3 style="font-size:14px;color:#666;margin:0 0 8px 0;">Master Data Files <span style="font-size:11px;color:#999;">(from repository — only editable via GitHub)</span></h3>';
+    container.appendChild(masterHeader);
+
+    if (masterFiles.length === 0) {
+        // Show default master file entries even if not yet loaded
+        var defaultMasters = [
+            { name: 'data/Loads.xlsx', type: 'Loads', rows: loadsData.length, date: new Date().toISOString() },
+            { name: 'data/Report.xlsx', type: 'Report (Miles/Odo)', rows: reportData.length, date: new Date().toISOString() },
+            { name: 'data/Fuel.xlsx', type: 'Fuel', rows: fuelData.length, date: new Date().toISOString() },
+            { name: 'data/LocalTripsheet.xlsx', type: 'Local Trip Sheet', rows: tripData.length, date: new Date().toISOString() }
+        ];
+        defaultMasters.forEach(function(f) {
+            var div = document.createElement('div');
+            div.className = 'stored-file-item';
+            div.style.borderLeft = '3px solid #2196F3';
+            div.innerHTML =
+                '<div class="stored-file-info">' +
+                    '<span class="stored-file-name" style="font-weight:600;">' + esc(f.name) + '</span>' +
+                    '<span class="stored-file-meta">' + esc(f.type) + ' | ' + f.rows + ' records | Uploaded ' + new Date(f.date).toLocaleDateString() + '</span>' +
+                '</div>' +
+                '<span style="font-size:11px;color:#2196F3;font-weight:500;padding:4px 8px;">MASTER</span>';
+            container.appendChild(div);
         });
-    });
+    } else {
+        masterFiles.forEach(function(f) {
+            var div = document.createElement('div');
+            div.className = 'stored-file-item';
+            div.style.borderLeft = '3px solid #2196F3';
+            div.innerHTML =
+                '<div class="stored-file-info">' +
+                    '<span class="stored-file-name" style="font-weight:600;">' + esc(f.name) + '</span>' +
+                    '<span class="stored-file-meta">' + esc(f.type) + ' | ' + f.rows + ' records | Uploaded ' + new Date(f.date).toLocaleDateString() + '</span>' +
+                '</div>' +
+                '<span style="font-size:11px;color:#2196F3;font-weight:500;padding:4px 8px;">MASTER</span>';
+            container.appendChild(div);
+        });
+    }
+
+    // Show user-uploaded files section if any
+    if (userFiles.length > 0) {
+        var userHeader = document.createElement('div');
+        userHeader.style.cssText = 'margin-top:16px;margin-bottom:10px;';
+        userHeader.innerHTML = '<h3 style="font-size:14px;color:#666;margin:0 0 8px 0;">User Uploaded Files</h3>';
+        container.appendChild(userHeader);
+
+        userFiles.forEach(function(f, i) {
+            var div = document.createElement('div');
+            div.className = 'stored-file-item';
+            div.innerHTML =
+                '<div class="stored-file-info">' +
+                    '<span class="stored-file-name">' + esc(f.name) + '</span>' +
+                    '<span class="stored-file-meta">' + esc(f.type) + ' | ' + f.rows + ' records | Uploaded ' + new Date(f.date).toLocaleDateString() + '</span>' +
+                '</div>' +
+                '<button class="btn btn-sm btn-outline btn-danger audit-hide" data-idx="' + i + '">Remove</button>';
+            container.appendChild(div);
+        });
+
+        container.querySelectorAll('button[data-idx]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var idx = parseInt(this.dataset.idx);
+                userFiles.splice(idx, 1);
+                localStorage.setItem(STORAGE_KEYS.files, JSON.stringify(userFiles));
+                renderStoredFiles();
+            });
+        });
+    }
 }
 
 // ===== Delete Record =====
@@ -2375,7 +2450,8 @@ function exportPDF(type) {
 // ===== Actions =====
 function setupActions() {
     document.getElementById('clearAllData').addEventListener('click', function() {
-        if (!confirm('Are you sure you want to clear ALL stored data? This cannot be undone.')) return;
+        if (!confirm('Are you sure you want to clear all user-uploaded data? Master Excel files from the repository will be preserved and reloaded.')) return;
+        // Clear in-memory arrays
         fuelData = [];
         loadsData = [];
         reportData = [];
@@ -2384,13 +2460,19 @@ function setupActions() {
         filteredLoads = [];
         filteredReport = [];
         filteredTrip = [];
+        // Clear localStorage for user data and uploaded file records
         localStorage.removeItem(STORAGE_KEYS.fuel);
         localStorage.removeItem(STORAGE_KEYS.loads);
         localStorage.removeItem(STORAGE_KEYS.report);
         localStorage.removeItem(STORAGE_KEYS.trip);
         localStorage.removeItem(STORAGE_KEYS.files);
+        // NOTE: Do NOT remove STORAGE_KEYS.masterFiles — master records are preserved
         renderAll();
-        showToast('All data cleared', 'success');
+        showToast('User-uploaded data cleared. Reloading master data from repository...', 'success');
+        // Reload master data from data/ folder
+        loadFromDataFiles(function() {
+            showToast('Master data reloaded from Excel files', 'success');
+        });
     });
 
     document.getElementById('loadSampleData').addEventListener('click', loadSampleData);
@@ -2658,6 +2740,7 @@ function setupSettings() {
                 loaded++;
                 if (loaded === dataFiles.length) {
                     saveData();
+                    saveMasterFileRecords();
                     renderAll();
                     populateFilterDropdowns();
                     btn.disabled = false;
