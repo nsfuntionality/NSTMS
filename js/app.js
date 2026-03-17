@@ -1714,36 +1714,36 @@ function parseTripWorkbook(workbook, fileName, sheetNameOverride) {
 
 // ===== Export =====
 function setupExport() {
-    document.getElementById('exportFuelCSV').addEventListener('click', function() {
-        exportCSV(filteredFuel, [
-            'cardNum', 'tranDate', 'tranTime', 'invoice', 'unit', 'driverName',
-            'odometer', 'locationName', 'city', 'state', 'fees', 'item',
-            'unitPrice', 'qty', 'amt', 'db', 'currency'
-        ], [
-            'Card #', 'Tran Date', 'Trans. Time', 'Invoice', 'Unit', 'Driver Name',
-            'Odometer', 'Location Name', 'City', 'State', 'Fees', 'Item',
-            'Unit Price', 'Qty', 'Amount', 'DB', 'Currency'
-        ], 'fuel_export.csv');
-    });
+    // document.getElementById('exportFuelCSV').addEventListener('click', function() {
+    //     exportCSV(filteredFuel, [
+    //         'cardNum', 'tranDate', 'tranTime', 'invoice', 'unit', 'driverName',
+    //         'odometer', 'locationName', 'city', 'state', 'fees', 'item',
+    //         'unitPrice', 'qty', 'amt', 'db', 'currency'
+    //     ], [
+    //         'Card #', 'Tran Date', 'Trans. Time', 'Invoice', 'Unit', 'Driver Name',
+    //         'Odometer', 'Location Name', 'City', 'State', 'Fees', 'Item',
+    //         'Unit Price', 'Qty', 'Amount', 'DB', 'Currency'
+    //     ], 'fuel_export.csv');
+    // });
 
-    document.getElementById('exportLoadsCSV').addEventListener('click', function() {
-        exportCSV(filteredLoads, [
-            'invoiceId', 'loadNum', 'broker', 'pickDate', 'pickup', 'dropDate', 'dropoff',
-            'driver', 'truck', 'trailer'
-        ], [
-            'InvoiceID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date', 'Dropoff',
-            'Driver', 'TruckName', 'Trailer'
-        ], 'loads_export.csv');
-    });
+    // document.getElementById('exportLoadsCSV').addEventListener('click', function() {
+    //     exportCSV(filteredLoads, [
+    //         'invoiceId', 'loadNum', 'broker', 'pickDate', 'pickup', 'dropDate', 'dropoff',
+    //         'driver', 'truck', 'trailer'
+    //     ], [
+    //         'InvoiceID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date', 'Dropoff',
+    //         'Driver', 'TruckName', 'Trailer'
+    //     ], 'loads_export.csv');
+    // });
 
-    document.getElementById('exportReportCSV').addEventListener('click', function() {
-        var weeks = groupByWeek(filteredReport);
-        exportCSV(weeks, [
-            'reportName', 'driver', 'date', 'state', 'miles'
-        ], [
-            'Report Name', 'Driver ID', 'Date', 'State', 'Miles'
-        ], 'weekly_miles_report.csv');
-    });
+    // document.getElementById('exportReportCSV').addEventListener('click', function() {
+    //     var weeks = groupByWeek(filteredReport);
+    //     exportCSV(weeks, [
+    //         'reportName', 'driver', 'date', 'state', 'miles'
+    //     ], [
+    //         'Report Name', 'Driver ID', 'Date', 'State', 'Miles'
+    //     ], 'weekly_miles_report.csv');
+    // });
 
     // Save to Excel buttons
     document.getElementById('saveFuelExcel').addEventListener('click', function() { saveToExcel('fuel'); });
@@ -1756,42 +1756,42 @@ function setupExport() {
     document.getElementById('exportReportPDF').addEventListener('click', function() { exportPDF('report'); });
 
     // Trip Sheet exports
-    document.getElementById('exportTripCSV').addEventListener('click', function() {
-        exportCSV(filteredTrip, [
-            'driverName', 'truck', 'day', 'startTime', 'endTime', 'totalHours', 'offDutyDay', 'destination'
-        ], [
-            'Driver Name', 'Truck', 'Day', 'Start Time', 'End Time', 'Total Hours', 'Off Duty Day', 'Destination City/State'
-        ], 'tripsheet_export.csv');
-    });
+    // document.getElementById('exportTripCSV').addEventListener('click', function() {
+    //     exportCSV(filteredTrip, [
+    //         'driverName', 'truck', 'day', 'startTime', 'endTime', 'totalHours', 'offDutyDay', 'destination'
+    //     ], [
+    //         'Driver Name', 'Truck', 'Day', 'Start Time', 'End Time', 'Total Hours', 'Off Duty Day', 'Destination City/State'
+    //     ], 'tripsheet_export.csv');
+    // });
     document.getElementById('saveTripExcel').addEventListener('click', function() { saveToExcel('trip'); });
     document.getElementById('exportTripPDF').addEventListener('click', function() { exportPDF('trip'); });
 }
 
-function exportCSV(data, fields, headers, filename) {
-    if (!data.length) {
-        showToast('No data to export', 'error');
-        return;
-    }
-    var csvRows = [headers.join(',')];
-    data.forEach(function(row) {
-        var vals = fields.map(function(f) {
-            var v = row[f] != null ? String(row[f]) : '';
-            if (v.indexOf(',') !== -1 || v.indexOf('"') !== -1) {
-                v = '"' + v.replace(/"/g, '""') + '"';
-            }
-            return v;
-        });
-        csvRows.push(vals.join(','));
-    });
-    var blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Exported ' + data.length + ' records to ' + filename, 'success');
-}
+// function exportCSV(data, fields, headers, filename) {
+//     if (!data.length) {
+//         showToast('No data to export', 'error');
+//         return;
+//     }
+//     var csvRows = [headers.join(',')];
+//     data.forEach(function(row) {
+//         var vals = fields.map(function(f) {
+//             var v = row[f] != null ? String(row[f]) : '';
+//             if (v.indexOf(',') !== -1 || v.indexOf('"') !== -1) {
+//                 v = '"' + v.replace(/"/g, '""') + '"';
+//             }
+//             return v;
+//         });
+//         csvRows.push(vals.join(','));
+//     });
+//     var blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+//     var url = URL.createObjectURL(blob);
+//     var a = document.createElement('a');
+//     a.href = url;
+//     a.download = filename;
+//     a.click();
+//     URL.revokeObjectURL(url);
+//     showToast('Exported ' + data.length + ' records to ' + filename, 'success');
+// }
 
 // ===== Export PDF =====
 // Preload logo image as base64 for PDF exports
