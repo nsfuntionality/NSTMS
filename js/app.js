@@ -1991,9 +1991,9 @@ function exportPDF(type) {
 
         var fuelDrivers = {};
         filteredFuel.forEach(function(r) { if (r.driverName) fuelDrivers[r.driverName] = true; });
-        var fuelDriverStr = Object.keys(fuelDrivers).join('_') || 'All';
+        var fuelDriverStr = Object.keys(fuelDrivers).join('_').replace(/\s+/g, '') || 'All';
         var fuelDateRange = fmtShort(minDate).replace(/\//g, '-') + '_to_' + fmtShort(maxDate).replace(/\//g, '-');
-        doc.save(fuelDateRange + ' - ' + fuelDriverStr + ' - Fuel_Report.pdf');
+        doc.save(fuelDateRange + '-' + fuelDriverStr + '-Fuel_Report.pdf');
         showToast('Fuel PDF exported', 'success');
 
     } else if (type === 'loads') {
@@ -2095,9 +2095,9 @@ function exportPDF(type) {
             margin: { left: 8, right: 8 }
         });
 
-        var loadsDriverStr = Object.keys(drivers).join('_') || 'All';
+        var loadsDriverStr = Object.keys(drivers).join('_').replace(/\s+/g, '') || 'All';
         var loadsDateRange = fmtShort(minDate).replace(/\//g, '-') + '_to_' + fmtShort(maxDate).replace(/\//g, '-');
-        doc.save(loadsDateRange + ' - ' + loadsDriverStr + ' - Loads_Report.pdf');
+        doc.save(loadsDateRange + '-' + loadsDriverStr + '-Loads_Report.pdf');
         showToast('Loads PDF exported', 'success');
 
     } else if (type === 'report') {
@@ -2265,8 +2265,8 @@ function exportPDF(type) {
         doc.text('copyright \u00A9 2025 Khalsa Logistics LLC.', 14, tableY + 4);
 
         var reportDateRange = fmtPad(minDate).replace(/\//g, '-') + '_to_' + fmtPad(maxDate).replace(/\//g, '-');
-        var reportDriverStr = driverLabel.replace(/,\s*/g, '_') || 'All';
-        doc.save(reportDateRange + ' - ' + reportDriverStr + ' - Earning_Report.pdf');
+        var reportDriverStr = driverLabel.replace(/,\s*/g, '_').replace(/\s+/g, '') || 'All';
+        doc.save(reportDateRange + '-' + reportDriverStr + '-Earning_Report.pdf');
         showToast('Report PDF exported', 'success');
 
     } else if (type === 'trip') {
@@ -2462,9 +2462,9 @@ function exportPDF(type) {
                 }
             }
         });
-        var tripDriverStr = Object.keys(tripDrivers).join('_') || 'All';
+        var tripDriverStr = Object.keys(tripDrivers).join('_').replace(/\s+/g, '') || 'All';
         var tripDateRange = fmtPad(tripMinDate).replace(/\//g, '-') + '_to_' + fmtPad(tripMaxDate).replace(/\//g, '-');
-        doc.save(tripDateRange + ' - ' + tripDriverStr + ' - Local_TripSheet.pdf');
+        doc.save(tripDateRange + '-' + tripDriverStr + '-Local_TripSheet.pdf');
         showToast('Trip Sheet PDF exported', 'success');
     }
 }
