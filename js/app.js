@@ -1989,7 +1989,11 @@ function exportPDF(type) {
             margin: { left: 8, right: 8 }
         });
 
-        doc.save('Fuel_Report.pdf');
+        var fuelDrivers = {};
+        filteredFuel.forEach(function(r) { if (r.driverName) fuelDrivers[r.driverName] = true; });
+        var fuelDriverStr = Object.keys(fuelDrivers).join('_') || 'All';
+        var fuelDateRange = fmtShort(minDate).replace(/\//g, '-') + '_to_' + fmtShort(maxDate).replace(/\//g, '-');
+        doc.save(fuelDateRange + ' - ' + fuelDriverStr + ' - Fuel_Report.pdf');
         showToast('Fuel PDF exported', 'success');
 
     } else if (type === 'loads') {
@@ -2091,7 +2095,9 @@ function exportPDF(type) {
             margin: { left: 8, right: 8 }
         });
 
-        doc.save('Loads_Report.pdf');
+        var loadsDriverStr = Object.keys(drivers).join('_') || 'All';
+        var loadsDateRange = fmtShort(minDate).replace(/\//g, '-') + '_to_' + fmtShort(maxDate).replace(/\//g, '-');
+        doc.save(loadsDateRange + ' - ' + loadsDriverStr + ' - Loads_Report.pdf');
         showToast('Loads PDF exported', 'success');
 
     } else if (type === 'report') {
@@ -2258,7 +2264,9 @@ function exportPDF(type) {
         doc.text('If you have any question, please feel free to reach out to 1-800-811-7308 or email at Khalsalogisticsllc@gmail.com.', 14, tableY);
         doc.text('copyright \u00A9 2025 Khalsa Logistics LLC.', 14, tableY + 4);
 
-        doc.save('Driver_Earning_Report.pdf');
+        var reportDateRange = fmtPad(minDate).replace(/\//g, '-') + '_to_' + fmtPad(maxDate).replace(/\//g, '-');
+        var reportDriverStr = driverLabel.replace(/,\s*/g, '_') || 'All';
+        doc.save(reportDateRange + ' - ' + reportDriverStr + ' - Earning_Report.pdf');
         showToast('Report PDF exported', 'success');
 
     } else if (type === 'trip') {
@@ -2442,7 +2450,21 @@ function exportPDF(type) {
             }
         });
 
-        doc.save('Local_TripSheet.pdf');
+        var tripDrivers = {};
+        var tripMinDate = null, tripMaxDate = null;
+        filteredTrip.forEach(function(r) {
+            if (r.driverName) tripDrivers[r.driverName] = true;
+            if (r.day) {
+                var d = new Date(r.day);
+                if (!isNaN(d.getTime())) {
+                    if (!tripMinDate || d < tripMinDate) tripMinDate = d;
+                    if (!tripMaxDate || d > tripMaxDate) tripMaxDate = d;
+                }
+            }
+        });
+        var tripDriverStr = Object.keys(tripDrivers).join('_') || 'All';
+        var tripDateRange = fmtPad(tripMinDate).replace(/\//g, '-') + '_to_' + fmtPad(tripMaxDate).replace(/\//g, '-');
+        doc.save(tripDateRange + ' - ' + tripDriverStr + ' - Local_TripSheet.pdf');
         showToast('Trip Sheet PDF exported', 'success');
     }
 }
