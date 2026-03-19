@@ -1714,36 +1714,36 @@ function parseTripWorkbook(workbook, fileName, sheetNameOverride) {
 
 // ===== Export =====
 function setupExport() {
-    document.getElementById('exportFuelCSV').addEventListener('click', function() {
-        exportCSV(filteredFuel, [
-            'cardNum', 'tranDate', 'tranTime', 'invoice', 'unit', 'driverName',
-            'odometer', 'locationName', 'city', 'state', 'fees', 'item',
-            'unitPrice', 'qty', 'amt', 'db', 'currency'
-        ], [
-            'Card #', 'Tran Date', 'Trans. Time', 'Invoice', 'Unit', 'Driver Name',
-            'Odometer', 'Location Name', 'City', 'State', 'Fees', 'Item',
-            'Unit Price', 'Qty', 'Amount', 'DB', 'Currency'
-        ], 'fuel_export.csv');
-    });
+    // document.getElementById('exportFuelCSV').addEventListener('click', function() {
+    //     exportCSV(filteredFuel, [
+    //         'cardNum', 'tranDate', 'tranTime', 'invoice', 'unit', 'driverName',
+    //         'odometer', 'locationName', 'city', 'state', 'fees', 'item',
+    //         'unitPrice', 'qty', 'amt', 'db', 'currency'
+    //     ], [
+    //         'Card #', 'Tran Date', 'Trans. Time', 'Invoice', 'Unit', 'Driver Name',
+    //         'Odometer', 'Location Name', 'City', 'State', 'Fees', 'Item',
+    //         'Unit Price', 'Qty', 'Amount', 'DB', 'Currency'
+    //     ], 'fuel_export.csv');
+    // });
 
-    document.getElementById('exportLoadsCSV').addEventListener('click', function() {
-        exportCSV(filteredLoads, [
-            'invoiceId', 'loadNum', 'broker', 'pickDate', 'pickup', 'dropDate', 'dropoff',
-            'driver', 'truck', 'trailer'
-        ], [
-            'InvoiceID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date', 'Dropoff',
-            'Driver', 'TruckName', 'Trailer'
-        ], 'loads_export.csv');
-    });
+    // document.getElementById('exportLoadsCSV').addEventListener('click', function() {
+    //     exportCSV(filteredLoads, [
+    //         'invoiceId', 'loadNum', 'broker', 'pickDate', 'pickup', 'dropDate', 'dropoff',
+    //         'driver', 'truck', 'trailer'
+    //     ], [
+    //         'InvoiceID', 'Load #', 'Broker', 'Pick Date', 'Pickup', 'Drop Date', 'Dropoff',
+    //         'Driver', 'TruckName', 'Trailer'
+    //     ], 'loads_export.csv');
+    // });
 
-    document.getElementById('exportReportCSV').addEventListener('click', function() {
-        var weeks = groupByWeek(filteredReport);
-        exportCSV(weeks, [
-            'reportName', 'driver', 'date', 'state', 'miles'
-        ], [
-            'Report Name', 'Driver ID', 'Date', 'State', 'Miles'
-        ], 'weekly_miles_report.csv');
-    });
+    // document.getElementById('exportReportCSV').addEventListener('click', function() {
+    //     var weeks = groupByWeek(filteredReport);
+    //     exportCSV(weeks, [
+    //         'reportName', 'driver', 'date', 'state', 'miles'
+    //     ], [
+    //         'Report Name', 'Driver ID', 'Date', 'State', 'Miles'
+    //     ], 'weekly_miles_report.csv');
+    // });
 
     // Save to Excel buttons
     document.getElementById('saveFuelExcel').addEventListener('click', function() { saveToExcel('fuel'); });
@@ -1756,42 +1756,42 @@ function setupExport() {
     document.getElementById('exportReportPDF').addEventListener('click', function() { exportPDF('report'); });
 
     // Trip Sheet exports
-    document.getElementById('exportTripCSV').addEventListener('click', function() {
-        exportCSV(filteredTrip, [
-            'driverName', 'truck', 'day', 'startTime', 'endTime', 'totalHours', 'offDutyDay', 'destination'
-        ], [
-            'Driver Name', 'Truck', 'Day', 'Start Time', 'End Time', 'Total Hours', 'Off Duty Day', 'Destination City/State'
-        ], 'tripsheet_export.csv');
-    });
+    // document.getElementById('exportTripCSV').addEventListener('click', function() {
+    //     exportCSV(filteredTrip, [
+    //         'driverName', 'truck', 'day', 'startTime', 'endTime', 'totalHours', 'offDutyDay', 'destination'
+    //     ], [
+    //         'Driver Name', 'Truck', 'Day', 'Start Time', 'End Time', 'Total Hours', 'Off Duty Day', 'Destination City/State'
+    //     ], 'tripsheet_export.csv');
+    // });
     document.getElementById('saveTripExcel').addEventListener('click', function() { saveToExcel('trip'); });
     document.getElementById('exportTripPDF').addEventListener('click', function() { exportPDF('trip'); });
 }
 
-function exportCSV(data, fields, headers, filename) {
-    if (!data.length) {
-        showToast('No data to export', 'error');
-        return;
-    }
-    var csvRows = [headers.join(',')];
-    data.forEach(function(row) {
-        var vals = fields.map(function(f) {
-            var v = row[f] != null ? String(row[f]) : '';
-            if (v.indexOf(',') !== -1 || v.indexOf('"') !== -1) {
-                v = '"' + v.replace(/"/g, '""') + '"';
-            }
-            return v;
-        });
-        csvRows.push(vals.join(','));
-    });
-    var blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Exported ' + data.length + ' records to ' + filename, 'success');
-}
+// function exportCSV(data, fields, headers, filename) {
+//     if (!data.length) {
+//         showToast('No data to export', 'error');
+//         return;
+//     }
+//     var csvRows = [headers.join(',')];
+//     data.forEach(function(row) {
+//         var vals = fields.map(function(f) {
+//             var v = row[f] != null ? String(row[f]) : '';
+//             if (v.indexOf(',') !== -1 || v.indexOf('"') !== -1) {
+//                 v = '"' + v.replace(/"/g, '""') + '"';
+//             }
+//             return v;
+//         });
+//         csvRows.push(vals.join(','));
+//     });
+//     var blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+//     var url = URL.createObjectURL(blob);
+//     var a = document.createElement('a');
+//     a.href = url;
+//     a.download = filename;
+//     a.click();
+//     URL.revokeObjectURL(url);
+//     showToast('Exported ' + data.length + ' records to ' + filename, 'success');
+// }
 
 // ===== Export PDF =====
 // Preload logo image as base64 for PDF exports
@@ -1989,7 +1989,11 @@ function exportPDF(type) {
             margin: { left: 8, right: 8 }
         });
 
-        doc.save('Fuel_Report.pdf');
+        var fuelDrivers = {};
+        filteredFuel.forEach(function(r) { if (r.driverName) fuelDrivers[r.driverName] = true; });
+        var fuelDriverStr = Object.keys(fuelDrivers).join('_').replace(/\s+/g, '') || 'All';
+        var fuelDateRange = fmtShort(minDate).replace(/\//g, '-') + '_to_' + fmtShort(maxDate).replace(/\//g, '-');
+        doc.save(fuelDateRange + '-' + fuelDriverStr + '-Fuel_Report.pdf');
         showToast('Fuel PDF exported', 'success');
 
     } else if (type === 'loads') {
@@ -2091,7 +2095,9 @@ function exportPDF(type) {
             margin: { left: 8, right: 8 }
         });
 
-        doc.save('Loads_Report.pdf');
+        var loadsDriverStr = Object.keys(drivers).join('_').replace(/\s+/g, '') || 'All';
+        var loadsDateRange = fmtShort(minDate).replace(/\//g, '-') + '_to_' + fmtShort(maxDate).replace(/\//g, '-');
+        doc.save(loadsDateRange + '-' + loadsDriverStr + '-Loads_Report.pdf');
         showToast('Loads PDF exported', 'success');
 
     } else if (type === 'report') {
@@ -2258,7 +2264,9 @@ function exportPDF(type) {
         doc.text('If you have any question, please feel free to reach out to 1-800-811-7308 or email at Khalsalogisticsllc@gmail.com.', 14, tableY);
         doc.text('copyright \u00A9 2025 Khalsa Logistics LLC.', 14, tableY + 4);
 
-        doc.save('Driver_Earning_Report.pdf');
+        var reportDateRange = fmtPad(minDate).replace(/\//g, '-') + '_to_' + fmtPad(maxDate).replace(/\//g, '-');
+        var reportDriverStr = driverLabel.replace(/,\s*/g, '_').replace(/\s+/g, '') || 'All';
+        doc.save(reportDateRange + '-' + reportDriverStr + '-Earning_Report.pdf');
         showToast('Report PDF exported', 'success');
 
     } else if (type === 'trip') {
@@ -2442,7 +2450,21 @@ function exportPDF(type) {
             }
         });
 
-        doc.save('Local_TripSheet.pdf');
+        var tripDrivers = {};
+        var tripMinDate = null, tripMaxDate = null;
+        filteredTrip.forEach(function(r) {
+            if (r.driverName) tripDrivers[r.driverName] = true;
+            if (r.day) {
+                var d = new Date(r.day);
+                if (!isNaN(d.getTime())) {
+                    if (!tripMinDate || d < tripMinDate) tripMinDate = d;
+                    if (!tripMaxDate || d > tripMaxDate) tripMaxDate = d;
+                }
+            }
+        });
+        var tripDriverStr = Object.keys(tripDrivers).join('_').replace(/\s+/g, '') || 'All';
+        var tripDateRange = fmtPad(tripMinDate).replace(/\//g, '-') + '_to_' + fmtPad(tripMaxDate).replace(/\//g, '-');
+        doc.save(tripDateRange + '-' + tripDriverStr + '-Local_TripSheet.pdf');
         showToast('Trip Sheet PDF exported', 'success');
     }
 }
