@@ -269,7 +269,10 @@ function applyFilters() {
     filteredFuel = fuelData.filter(function(r) {
         if (startDate && r.tranDate && r.tranDate < startDate) return false;
         if (endDate && r.tranDate && r.tranDate > endDate) return false;
-        if (driver && r.driverName && r.driverName.indexOf(driver) === -1) return false;
+        if (driver) {
+            if (!r.driverName) return false;
+            if (r.driverName.indexOf(driver) === -1) return false;
+        }
         if (truck && r.unit !== truck) return false;
         return true;
     });
@@ -277,7 +280,10 @@ function applyFilters() {
     filteredLoads = loadsData.filter(function(r) {
         if (startDate && r.pickDate && r.pickDate < startDate) return false;
         if (endDate && r.pickDate && r.pickDate > endDate) return false;
-        if (driver && r.driver && r.driver.indexOf(driver) === -1) return false;
+        if (driver) {
+            if (!r.driver) return false;
+            if (r.driver.indexOf(driver) === -1) return false;
+        }
         if (truck && r.truck !== truck) return false;
         if (trailer && r.trailer !== trailer) return false;
         return true;
@@ -286,15 +292,24 @@ function applyFilters() {
     filteredReport = reportData.filter(function(r) {
         if (startDate && r.date && r.date < startDate) return false;
         if (endDate && r.date && r.date > endDate) return false;
-        if (driver && r.driverName && r.driverName.indexOf(driver) === -1) return false;
-        if (truck && r.truck && r.truck.indexOf(truck) === -1) return false;
+        if (driver) {
+            if (!r.driverName) return false;
+            if (r.driverName.indexOf(driver) === -1) return false;
+        }
+        if (truck) {
+            if (!r.truck) return false;
+            if (r.truck.indexOf(truck) === -1) return false;
+        }
         return true;
     });
 
     filteredTrip = tripData.filter(function(r) {
         if (startDate && r.day && r.day < startDate) return false;
         if (endDate && r.day && r.day > endDate) return false;
-        if (driver && r.driverName && r.driverName.indexOf(driver) === -1) return false;
+        if (driver) {
+            if (!r.driverName) return false;
+            if (r.driverName.indexOf(driver) === -1) return false;
+        }
         if (truck && r.truck !== truck) return false;
         return true;
     });
@@ -601,24 +616,35 @@ function renderReport() {
     var milesBody = document.querySelector('#reportMilesTable tbody');
     milesBody.innerHTML = '';
     var totalMiles = 0;
+    var activeDriver = document.getElementById('filterDriver').value;
 
     if (filteredReport.length === 0) {
         milesBody.innerHTML = '<tr><td colspan="7" class="empty-state">No miles data. Upload a report file with miles data.</td></tr>';
     } else {
         // Determine driver name for the title
-        var driverNames = new Set();
-        filteredReport.forEach(function(r) { if (r.driverName) driverNames.add(r.driverName); });
-        var driverLabel = driverNames.size ? Array.from(driverNames).join(', ') : '';
+        var driverLabel = '';
+        if (activeDriver) {
+            driverLabel = activeDriver;
+        } else {
+            var driverNames = new Set();
+            filteredReport.forEach(function(r) {
+                if (r.driverName) {
+                    r.driverName.split(',').forEach(function(d) { driverNames.add(d.trim()); });
+                }
+            });
+            driverLabel = driverNames.size ? Array.from(driverNames).join(', ') : '';
+        }
         if (driverLabel) {
             document.getElementById('rptWeeklyTitle').textContent = 'Weekly - ' + driverLabel + ' Miles Service Information';
         }
 
         var weeks = groupByWeek(filteredReport);
         weeks.forEach(function(w) {
+            var displayDriver = activeDriver || w.driver;
             var tr = document.createElement('tr');
             tr.innerHTML =
                 '<td>' + esc(w.reportName) + '</td>' +
-                '<td>' + esc(w.driver) + '</td>' +
+                '<td>' + esc(displayDriver) + '</td>' +
                 '<td>' + formatDate(w.date) + '</td>' +
                 '<td>' + esc(w.state) + '</td>' +
                 '<td class="odo-col amount-cell">' + (w.startOdo ? w.startOdo.toLocaleString() : '') + '</td>' +
@@ -637,9 +663,18 @@ function renderReport() {
 
     // Populate earning report header fields
     var data = filteredReport.length ? filteredReport : reportData;
-    var driverNames = new Set();
-    data.forEach(function(r) { if (r.driverName) driverNames.add(r.driverName); });
-    var driverLabel = driverNames.size ? Array.from(driverNames).join(', ') : '--';
+    var driverLabel;
+    if (activeDriver) {
+        driverLabel = activeDriver;
+    } else {
+        var driverNames = new Set();
+        data.forEach(function(r) {
+            if (r.driverName) {
+                r.driverName.split(',').forEach(function(d) { driverNames.add(d.trim()); });
+            }
+        });
+        driverLabel = driverNames.size ? Array.from(driverNames).join(', ') : '--';
+    }
 
     // Date range
     var minDate = null, maxDate = null;
@@ -2113,9 +2148,19 @@ function exportPDF(type) {
 
         // --- Compute data ---
         var data = filteredReport.length ? filteredReport : reportData;
-        var driverNames = new Set();
-        data.forEach(function(r) { if (r.driverName) driverNames.add(r.driverName); });
-        var driverLabel = driverNames.size ? Array.from(driverNames).join(', ') : '--';
+        var activeDriver = document.getElementById('filterDriver').value;
+        var driverLabel;
+        if (activeDriver) {
+            driverLabel = activeDriver;
+        } else {
+            var driverNames = new Set();
+            data.forEach(function(r) {
+                if (r.driverName) {
+                    r.driverName.split(',').forEach(function(d) { driverNames.add(d.trim()); });
+                }
+            });
+            driverLabel = driverNames.size ? Array.from(driverNames).join(', ') : '--';
+        }
 
         var minDate = null, maxDate = null;
         data.forEach(function(r) {
@@ -2219,7 +2264,7 @@ function exportPDF(type) {
         if (weeks.length) {
             var milesHeaders = ['Report Name', 'Driver ID', 'Date', 'State', 'Miles'];
             var milesRows = weeks.map(function(w) {
-                return [w.reportName, w.driver, formatDate(w.date), w.state, w.miles.toFixed(2)];
+                return [w.reportName, activeDriver || w.driver, formatDate(w.date), w.state, w.miles.toFixed(2)];
             });
             milesRows.push(['', '', '', 'Total', totalMilesCalc.toFixed(2)]);
 
