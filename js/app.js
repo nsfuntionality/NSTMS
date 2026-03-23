@@ -236,6 +236,10 @@ function populateFilterDropdowns() {
         if (r.driverName) driverSet.add(r.driverName);
         if (r.truck) truckSet.add(r.truck);
     });
+    reportData.forEach(function(r) {
+        if (r.driverName) driverSet.add(r.driverName);
+        if (r.truck) r.truck.split(',').forEach(function(t) { truckSet.add(t.trim()); });
+    });
 
     populateSelect('filterDriver', driverSet, 'All Drivers');
     populateSelect('filterTruck', truckSet, 'All Trucks');
@@ -282,6 +286,8 @@ function applyFilters() {
     filteredReport = reportData.filter(function(r) {
         if (startDate && r.date && r.date < startDate) return false;
         if (endDate && r.date && r.date > endDate) return false;
+        if (driver && r.driverName && r.driverName.indexOf(driver) === -1) return false;
+        if (truck && r.truck && r.truck.indexOf(truck) === -1) return false;
         return true;
     });
 
